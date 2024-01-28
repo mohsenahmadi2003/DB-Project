@@ -2,6 +2,7 @@
 from tkinter import ttk, messagebox
 import tkinter as tk
 import sys
+import hashlib
 
 # اضافه کردن مسیر ماژول ORM به sys.path
 sys.path.append('H:\Term-5\DB\Project\DB-Project\db')
@@ -9,6 +10,7 @@ sys.path.append('H:\Term-5\DB\Project\DB-Project\db')
 # وارد کردن کلاس ORM از ماژول ORM
 from orm import ORM
 from time import sleep
+
 
 # تعریف تابع برای تغییر قابلیت مشاهده یا عدم مشاهده رمز عبور
 def toggle_password_visibility():
@@ -19,11 +21,22 @@ def toggle_password_visibility():
         password_entry.config(show="")
         toggle_password_button.config(text="پنهان کردن رمز")
 
+
+def hash_password(password):
+    # هش کردن رمز عبور با الگوریتم SHA-256
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    return hashed_password
+
+
 # تعریف تابع برای ورود به سیستم
 def login():
     # دریافت نام کاربری و رمز عبور از ورودی‌ها
-    username = username_entry.get()
-    password = password_entry.get()
+    username: str = username_entry.get()
+    password: str = password_entry.get()
+    print(f"{password=} | {type(password)}")
+
+    password = hash_password(password)
+    print(f"{password=} | {type(password)}")
 
     # بررسی صحت نام کاربری و رمز عبور با استفاده از کلاس ORM
     result: bool = ORM.login(username, password)
@@ -39,6 +52,7 @@ def login():
         # در غیر اینصورت، نمایش پیام خطا به کاربر
         error_label.config(text=".نام کاربری یا رمز عبور اشتباه است")
 
+
 # تعریف و تنظیمات اولیه پنجره اصلی
 root = tk.Tk()
 root.title("صفحه لاگین")
@@ -51,8 +65,10 @@ username_label = ttk.Label(root, text="نام کاربری :", background="#f0f0
 username_entry = ttk.Entry(root, font=("Arial", 12))
 password_label = ttk.Label(root, text="رمز عبور :", background="#f0f0f0", foreground="black", font=("Arial", 12))
 password_entry = ttk.Entry(root, show="*", font=("Arial", 12))
-toggle_password_button = ttk.Button(root, text="پنهان کردن رمز", command=toggle_password_visibility, cursor="hand2", style="TButton")  # تغییر اندازه فونت و دکمه‌ها
-login_button = ttk.Button(root, text="ورود", command=login, style="TButton", cursor="hand2", width=20)  # تغییر اندازه دکمه‌ها و متن
+toggle_password_button = ttk.Button(root, text="پنهان کردن رمز", command=toggle_password_visibility, cursor="hand2",
+                                    style="TButton")  # تغییر اندازه فونت و دکمه‌ها
+login_button = ttk.Button(root, text="ورود", command=login, style="TButton", cursor="hand2",
+                          width=20)  # تغییر اندازه دکمه‌ها و متن
 error_label = ttk.Label(root, text="", background="#f0f0f0", foreground="red")  # تغییر رنگ متن
 
 # تنظیم استایل دکمه‌ها
