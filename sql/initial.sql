@@ -5,7 +5,7 @@
 CREATE TABLE `USERS` (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(32) UNIQUE,
-    password VARCHAR(32),
+    password VARCHAR(64),
     first_name VARCHAR(32),
     last_name VARCHAR(32),
     national_code VARCHAR(10),
