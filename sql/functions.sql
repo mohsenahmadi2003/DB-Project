@@ -1,6 +1,6 @@
 DELIMITER //
 -- Function for Login 
-CREATE FUNCTION LoginUser(p_username VARCHAR(32), p_password VARCHAR(32))
+CREATE FUNCTION LoginUser(p_username VARCHAR(32), p_password VARCHAR(64))
 RETURNS BOOLEAN
 READS SQL DATA
 BEGIN
