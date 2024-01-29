@@ -60,7 +60,7 @@ class EmailSender:
 # email_sender = EmailSender()
 # email_sender.connect_email()
 #
-# receiver_email = "ahmadimohsen138262@gmail.com"
+# receiver_email = "your_mail@gmail.com"
 # email_subject = "Temp Subject"
 # email_html_body = """
 #     <div dir="rtl">
