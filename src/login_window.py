@@ -24,7 +24,6 @@ from email_sender import EmailSender  # وارد کردن کلاس EmailSender �
 from email_message import EmailNotification  # وارد کردن کلاس EmailNotification از ماژول email_message
 
 
-
 # تعریف تابع برای تغییر قابلیت مشاهده یا عدم مشاهده رمز عبور
 def toggle_password_visibility():
     if password_entry.cget("show") == "":
@@ -50,14 +49,16 @@ def login():
     # بررسی صحت نام کاربری و رمز عبور با استفاده از کلاس ORM
     result: tuple = ORM.login(username, hash_password(password))
 
-    email = result[1]
-    username = result[2]
-    first_name = result[3]
-    last_name = result[4]
     result = bool(int(result[0]))
 
     # اگر نتیجه برابر True بود
     if result == True:
+
+        email = result[1]
+        username = result[2]
+        first_name = result[3]
+        last_name = result[4]
+
         email_sender = EmailSender()
         email_sender.connect_email()
 
@@ -76,7 +77,7 @@ def login():
 # تعریف و تنظیمات اولیه پنجره اصلی
 root = tk.Tk()
 root.title("صفحه لاگین")
-root.configure(bg="#f0f0f0")  # تنظیم رنگ پس زمینه
+root.configure(bg="#F0F0F0")  # تنظیم رنگ پس زمینه
 root.geometry("420x140")  # تنظیم اندازه پنجره
 root.resizable(False, False)  # غیر قابل تغییر اندازه کردن پنجره
 
