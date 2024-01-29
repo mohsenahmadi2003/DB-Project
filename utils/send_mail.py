@@ -53,3 +53,27 @@ class EmailSender:
     def close_connection(self):
         if self.server:
             self.server.quit()
+
+
+# Example usage:
+"""
+    email_sender = EmailSender()
+    email_sender.connect_email()
+
+    receiver_email = "fake@gmail.com"
+    email_subject = "Temp Subject"
+    email_html_body = "
+        <div dir="rtl">
+        <h2>فعالسازی حساب کاربری</h2>
+        <hr>
+        <p>کاربر گرامی ، جهت فعالسازی حساب کاربری خود روی لینک زیر کلیک کنید</p>
+        <p>
+            <a href="http://localhost:8000{% url 'activate_account' email_active_code=user.email_active_code %}">فعالسازی
+                حساب کاربری</a>
+        </p>
+        </div>
+        "
+
+    email_sender.send_mail(receiver_email, email_subject, email_html_body)
+    email_sender.close_connection()
+"""
