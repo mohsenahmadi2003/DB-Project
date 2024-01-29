@@ -87,3 +87,28 @@ BEGIN
 END//
 
 DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE LoginUser(IN p_username VARCHAR(32), IN p_password VARCHAR(64))
+BEGIN
+    DECLARE v_user_count INT;
+    DECLARE v_email VARCHAR(32);
+    DECLARE v_username VARCHAR(32);
+    DECLARE v_first_name VARCHAR(32);
+    DECLARE v_last_name VARCHAR(32);
+
+    SELECT COUNT(*), email, username, first_name, last_name
+    INTO v_user_count, v_email, v_username, v_first_name, v_last_name
+    FROM USERS
+    WHERE username = p_username AND password = p_password;
+
+    IF v_user_count > 0 THEN
+        SELECT 1 AS result, v_email AS email, v_username AS username, v_first_name AS first_name, v_last_name AS last_name;
+    ELSE
+        SELECT 0 AS result;
+    END IF;
+END //
+
+DELIMITER ;
