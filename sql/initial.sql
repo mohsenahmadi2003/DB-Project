@@ -25,7 +25,6 @@ CREATE TABLE `BANK_ACCOUNT` (
     user_id INT,
     account_number VARCHAR(20) UNIQUE,
     primary_password VARCHAR(4),
-    secondary_password VARCHAR(6),
     amount NUMERIC(20,2),
     rate NUMERIC(10,2),
     date_opened TIMESTAMP,
