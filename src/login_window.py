@@ -1,11 +1,15 @@
 # وارد کردن ماژول‌های مورد نیاز
-from tkinter import ttk, messagebox
+from tkinter import ttk
 import tkinter as tk
 import sys
 import hashlib
+import os
+
+BASEDIR: str = os.path.dirname(os.path.abspath(__file__))
+orm_path: str = BASEDIR.replace("\src", "\db")
 
 # اضافه کردن مسیر ماژول ORM به sys.path
-sys.path.append('H:\Term-5\DB\Project\DB-Project\db')
+sys.path.append(orm_path)
 
 # وارد کردن کلاس ORM از ماژول ORM
 from orm import ORM
@@ -33,13 +37,9 @@ def login():
     # دریافت نام کاربری و رمز عبور از ورودی‌ها
     username: str = username_entry.get()
     password: str = password_entry.get()
-    print(f"{password=} | {type(password)}")
-
-    password = hash_password(password)
-    print(f"{password=} | {type(password)}")
 
     # بررسی صحت نام کاربری و رمز عبور با استفاده از کلاس ORM
-    result: bool = ORM.login(username, password)
+    result: bool = ORM.login(username, hash_password(password))
     print(f"{result=}")
 
     # اگر نتیجه برابر True بود
