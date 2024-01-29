@@ -33,7 +33,7 @@ class ORM:
 
                 # ساخت کوئری برای ایجاد تابع در پایگاه داده
                 query = f"""
-                    SELECT IF(LoginUser('{username}', '{password}'), '1', '0');
+                        CALL LoginUser('{username}', '{password}');
                 """
 
                 # اجرای کوئری
@@ -51,4 +51,4 @@ class ORM:
                 db.close()
                 print("اتصال MySQL بسته شد.")
 
-        return bool(int(result[0]))  # تبدیل نتیجه به بولین و بازگرداندن آن
+        return result
