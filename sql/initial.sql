@@ -71,6 +71,18 @@ CREATE TABLE `TRANSACTION` (
     FOREIGN KEY (destination_account_number) REFERENCES BANK_ACCOUNT(account_number)
 );
 
+CREATE TABLE `SECONDARY_PASSWORDS` (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    bank_account_number VARCHAR(20),
+    transaction_id INT,
+    secondary_password VARCHAR(64),
+    expire_time TIMESTAMP,
+    UNIQUE (bank_account_number, transaction_id),
+    FOREIGN KEY (bank_account_number) REFERENCES BANK_ACCOUNT(account_number),
+    FOREIGN KEY (transaction_id) REFERENCES TRANSACTION(id)
+);
+
+
 
 -- ALTER TABLE `BANK_ACCOUNT` ADD FOREIGN KEY (`user_id`) REFERENCES `USERS` (`id`);
 
