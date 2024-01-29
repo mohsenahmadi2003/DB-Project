@@ -1,5 +1,5 @@
 DELIMITER //
-
+-- Procedure for UpdatePassword
 CREATE PROCEDURE UpdatePassword(IN userId INT, IN prevPassword VARCHAR(64), IN newPassword VARCHAR(64))
 BEGIN
     DECLARE existingPassword VARCHAR(64);
