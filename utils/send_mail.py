@@ -49,3 +49,7 @@ class EmailSender:
             print(f"Email sent successfully to {receiver} with subject: {subject}")
         except Exception as e:
             logging.info(f"Error in sending mail. Error message: {e}")
+
+    def close_connection(self):
+        if self.server:
+            self.server.quit()
