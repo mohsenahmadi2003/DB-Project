@@ -65,7 +65,7 @@ CREATE TABLE `TRANSACTION` (
     destination_account_number VARCHAR(20),
     amount NUMERIC(10, 2),
     transaction_date TIMESTAMP,
-    status BOOLEAN,
+    status VARCHAR(10),
     description VARCHAR(255),
     FOREIGN KEY (source_account_number) REFERENCES BANK_ACCOUNT(account_number),
     FOREIGN KEY (destination_account_number) REFERENCES BANK_ACCOUNT(account_number)
