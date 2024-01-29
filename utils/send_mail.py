@@ -28,3 +28,24 @@ class EmailSender:
         except Exception as e:
             print(f"Error in connecting mail: {e}")
             return False
+
+    def send_mail(self, receiver, subject="", html_body=""):
+        try:
+            if not self.server or self.server.noop()[0] != 250:
+                print("Mail server disconnected. Reconnecting.")
+                self.connect_email()
+            else:
+                logging.info(f"Mail server already connected: {self.server.noop()[0]}")
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = self.sender_email
+            msg["To"] = receiver
+
+            part1 = MIMEText(html_body, 'html')
+            msg.attach(part1)
+
+            self.server.sendmail(self.sender_email, receiver, msg.as_string())
+            print(f"Email sent successfully to {receiver} with subject: {subject}")
+        except Exception as e:
+            logging.info(f"Error in sending mail. Error message: {e}")
