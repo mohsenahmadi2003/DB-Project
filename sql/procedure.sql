@@ -29,13 +29,15 @@ CREATE PROCEDURE `Process_Transaction`(
     IN source_account_number_input VARCHAR(20),
     IN destination_account_number_input VARCHAR(20),
     IN amount_input NUMERIC(10, 2),
-    IN description_input VARCHAR(255)
+    IN description_input VARCHAR(255),
+    IN t_id INT
 )
 BEGIN
     DECLARE _transaction_id INT;
     DECLARE _secondary_password VARCHAR(8);
     DECLARE _transaction_date TIMESTAMP;
     DECLARE rollback_required BOOLEAN DEFAULT FALSE;
+    DECLARE result INT;
 
     -- Declare continue handler for any exception
     DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
@@ -44,35 +46,49 @@ BEGIN
         END;
 
     -- Start the transaction
+
     START TRANSACTION;
+    SELECT
+        CASE
+            WHEN EXISTS (SELECT id FROM TRANSACTION WHERE id = 1) THEN 1
+            ELSE 0
+        END AS result;
 
-    SET _transaction_date = NOW();
-    -- Insert transaction record
-    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
-                             description)
-    VALUES (source_account_number_input, destination_account_number_input, amount_input, _transaction_date, 'Pending',
-            description_input);
-
-    -- Get the transaction id
-    SELECT id
-    INTO _transaction_id
-    FROM TRANSACTION
-    WHERE source_account_number = source_account_number_input
-      AND destination_account_number = destination_account_number_input
-      AND amount = amount_input
-      AND transaction_date = _transaction_date
-      AND status = 'Pending'
-      AND description = description_input
-    LIMIT 1;
-
-
-    -- Insert secondary password record
     SET _secondary_password = LPAD(FLOOR(RAND() * POW(10, 8)), 8, '0');
 
-    INSERT INTO SECONDARY_PASSWORDS (bank_account_number, transaction_id, secondary_password, expire_time)
-    VALUES (source_account_number_input, _transaction_id, _secondary_password, TIMESTAMPADD(MINUTE, 2, NOW()));
+    IF result = 0 THEN
 
-    -- Check if rollback is required
+        SET _transaction_date = NOW();
+        -- Insert transaction record
+        INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
+                                 description)
+        VALUES (source_account_number_input, destination_account_number_input, amount_input, _transaction_date, 'Pending',
+                description_input);
+
+        -- Get the transaction id
+        SELECT id
+        INTO _transaction_id
+        FROM TRANSACTION
+        WHERE source_account_number = source_account_number_input
+          AND destination_account_number = destination_account_number_input
+          AND amount = amount_input
+          AND transaction_date = _transaction_date
+          AND status = 'Pending'
+          AND description = description_input
+        LIMIT 1;
+
+
+        INSERT INTO SECONDARY_PASSWORDS (bank_account_number, transaction_id, secondary_password, expire_time)
+        VALUES (source_account_number_input, _transaction_id, _secondary_password, TIMESTAMPADD(MINUTE, 2, NOW()));
+
+    ELSE
+
+        UPDATE SECONDARY_PASSWORDS
+        SET secondary_password = _secondary_password, expire_time = TIMESTAMPADD(MINUTE, 2, NOW())
+        WHERE transaction_id = t_id AND bank_account_number = source_account_number_input;
+
+    END IF;
+        -- Check if rollback is required
     IF rollback_required THEN
         -- Transaction failed
         ROLLBACK;
@@ -81,7 +97,11 @@ BEGIN
         -- Commit the transaction
         COMMIT;
         -- Transaction processed successfully
-        SELECT '1' AS Message;
+            IF result = 0 THEN
+                SELECT '1' AS Message, _transaction_id as transaction_id;
+            ELSE
+                SELECT '1' AS Message, t_id as transaction_id;
+             END IF;
     END IF;
 
 END//
