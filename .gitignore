@@ -196,4 +196,5 @@ pyvenv.cfg
 pip-selfcheck.json
 
 ./db/config.ini
+./utils/mail.ini
 # End of https://www.toptal.com/developers/gitignore/api/python,venv,database
