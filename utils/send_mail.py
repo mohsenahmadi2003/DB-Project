@@ -17,3 +17,14 @@ class EmailSender:
         self.password = str(self.config.get('email', 'password'))
         self.context = ssl.create_default_context()
         self.server = None
+
+    def connect_email(self):
+        try:
+            print("Connecting mail")
+            self.server = smtplib.SMTP(self.smtp_server, self.port)
+            self.server.starttls(context=self.context)
+            self.server.login(self.sender_email, self.password)
+            return True
+        except Exception as e:
+            print(f"Error in connecting mail: {e}")
+            return False
