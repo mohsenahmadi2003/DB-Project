@@ -75,7 +75,7 @@ CREATE TABLE `SECONDARY_PASSWORDS` (
     id INT AUTO_INCREMENT PRIMARY KEY,
     bank_account_number VARCHAR(20),
     transaction_id INT,
-    secondary_password VARCHAR(64),
+    secondary_password VARCHAR(8),
     expire_time TIMESTAMP,
     UNIQUE (bank_account_number, transaction_id),
     FOREIGN KEY (bank_account_number) REFERENCES BANK_ACCOUNT(account_number),
