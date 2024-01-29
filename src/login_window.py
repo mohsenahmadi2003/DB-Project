@@ -49,10 +49,10 @@ def login():
     # بررسی صحت نام کاربری و رمز عبور با استفاده از کلاس ORM
     result: tuple = ORM.login(username, hash_password(password))
 
-    result = bool(int(result[0]))
+    flag = bool(int(result[0]))
 
     # اگر نتیجه برابر True بود
-    if result == True:
+    if flag == True:
 
         email = result[1]
         username = result[2]
