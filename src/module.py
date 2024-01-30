@@ -4,6 +4,7 @@ import tkinter as tk  # وارد کردن کتابخانه tkinter به عنوا
 import sys  # وارد کردن ماژول sys برای دسترسی به متغیرهای سیستمی
 import hashlib  # وارد کردن ماژول hashlib برای هش کردن رمز عبور
 import os  # وارد کردن ماژول os برای ارتباط با سیستم عامل
+from tkinter import messagebox
 
 BASEDIR: str = os.path.dirname(os.path.abspath(__file__))  # تعیین مسیر پایه برنامه
 orm_path = BASEDIR  # انتساب مسیر پایه به متغیر orm_path
@@ -22,4 +23,10 @@ from time import sleep  # وارد کردن تابع sleep از ماژول time
 
 from email_sender import EmailSender  # وارد کردن کلاس EmailSender از ماژول email_sender
 from email_message import EmailNotification  # وارد کردن کلاس EmailNotification از ماژول email_message
+
+def hash_password(password):
+    # هش کردن رمز عبور با الگوریتم SHA-256
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    return hashed_password
+
 
