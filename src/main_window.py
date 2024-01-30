@@ -130,49 +130,6 @@ class AccountsTab(ttk.Frame):
                                         command=self.submit_account_changes)
         self.submit_button.grid(row=8, column=0, columnspan=2)
 
-        # ایجاد فریم برای نمایش لیست تراکنش های بانکی
-        accounts_transaction_frame = ttk.Frame(self)
-        accounts_transaction_frame.pack(fill=tk.BOTH, expand=True)
-
-        accounts_transaction_label = ttk.Label(accounts_frame, text="لیست تراکنش های اخیر این حساب بانکی")
-        accounts_transaction_label.pack()
-
-        self.accounts_tree = ttk.Treeview(accounts_frame, columns=(
-            "شماره ردیف", "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش', "وضعیت تراکنش",
-            'توضیحات تراکنش'), selectmode="browse")
-        self.accounts_tree.pack(fill=tk.BOTH, expand=True)
-
-        self.accounts_tree.heading("#0", text="شماره ردیف", anchor="center")
-        self.accounts_tree.column("#0", anchor='center')
-
-        self.accounts_tree.heading("#1", text="شماره حساب مبدا", anchor="center")
-        self.accounts_tree.column("#1", anchor='center')
-
-        self.accounts_tree.heading("#2", text="شماره حساب مقصد", anchor="center")
-        self.accounts_tree.column("#2", anchor='center')
-
-        self.accounts_tree.heading("#3", text="مقدار انتقال", anchor="center")
-        self.accounts_tree.column("#3", anchor='center')
-
-        self.accounts_tree.heading("#4", text='تاریخ تراکنش', anchor="center")
-        self.accounts_tree.column("#4", anchor='center')
-
-        self.accounts_tree.heading("#5", text="وضعیت تراکنش", anchor="center")
-        self.accounts_tree.column("#5", anchor='center')
-
-        self.accounts_tree.heading("#6", text='توضیحات تراکنش', anchor="center")
-        self.accounts_tree.column("#6", anchor='center')
-
-        for index, item in enumerate(self.result):
-            self.accounts_tree.insert("", tk.END, text=str(index), values=(f"{item[2]}", f"{item[4]}", f"{item[8]}"),
-                                      tags=('center',))
-
-        self.accounts_tree.tag_configure('center', anchor='center')
-
-        self.accounts_tree.bind("<<TreeviewSelect>>", self.on_account_selected)
-        self.accounts_tree.bind("<FocusOut>",
-                                lambda event: self.accounts_tree.selection_remove(self.accounts_tree.selection()))
-
     def submit_account_changes(self):
         description = self.selected_description_entry.get()
         is_account_blocked = self.selected_account_status_var.get()
@@ -307,6 +264,131 @@ class MenuBar(tk.Menu):
         self.add_cascade(label="آپدیت اطلاعات", menu=settings_menu)
 
 
+class TransactionsTab(ttk.Frame):
+    def __init__(self, parent, id: int):
+        super().__init__(parent)
+        self.id = id
+        self.create_layout()
+
+    def create_layout(self):
+        # ایجاد ویجت‌ها برای فیلتر تراکنش‌ها
+        filter_frame = ttk.Frame(self)
+        filter_frame.pack(fill="x", expand=False)
+
+        filter_button = ttk.Button(filter_frame, text="اعمال", command=self.apply_filter)
+        filter_button.grid(row=0, column=100, padx=5, pady=5)
+
+        # ایجاد ویجت‌های انتخاب نوع فیلتر تراکنش‌ها
+        filter_type_label = ttk.Label(filter_frame, text="نوع فیلتر:",
+                                      wraplength=100)  # تنظیم wraplength برای افقی شدن متن
+        filter_type_label.grid(row=0, column=0, padx=5, pady=5)
+
+        self.filter_type_var = tk.StringVar()
+        self.filter_type_var.set("تاریخ")  # تنظیم مقدار پیش‌فرض برای انتخاب
+        filter_type_combobox = ttk.Combobox(filter_frame, textvariable=self.filter_type_var,
+                                            values=["تاریخ", "تعداد تراکنش"], state="readonly", width=15)
+        filter_type_combobox.grid(row=0, column=1, padx=5, pady=5)
+        filter_type_combobox.bind("<<ComboboxSelected>>", self.on_filter_type_selected)
+
+        # ایجاد ویجت‌های نمایش لیست تراکنش‌ها
+        transactions_frame = ttk.Frame(self)
+        transactions_frame.pack(fill="both", expand=True)
+
+        transactions_label = ttk.Label(transactions_frame, text="لیست تراکنش‌ها")
+        transactions_label.pack()
+
+        self.transaction_tree = ttk.Treeview(transactions_frame, columns=(
+        "شماره ردیف", "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش', "وضعیت تراکنش",
+        'توضیحات تراکنش'), selectmode="browse")
+        self.transaction_tree.pack(fill="both", expand=True)
+
+        self.transaction_tree.heading("#0", text="شماره ردیف", anchor="center")
+        self.transaction_tree.column("#0", anchor='center')
+
+        self.transaction_tree.heading("#1", text="شماره حساب مبدا", anchor="center")
+        self.transaction_tree.column("#1", anchor='center')
+
+        self.transaction_tree.heading("#2", text="شماره حساب مقصد", anchor="center")
+        self.transaction_tree.column("#2", anchor='center')
+
+        self.transaction_tree.heading("#3", text="مقدار انتقال", anchor="center")
+        self.transaction_tree.column("#3", anchor='center')
+
+        self.transaction_tree.heading("#4", text='تاریخ تراکنش', anchor="center")
+        self.transaction_tree.column("#4", anchor='center')
+
+        self.transaction_tree.heading("#5", text="وضعیت تراکنش", anchor="center")
+        self.transaction_tree.column("#5", anchor='center')
+
+        self.transaction_tree.heading("#6", text='توضیحات تراکنش', anchor="center")
+        self.transaction_tree.column("#6", anchor='center')
+
+        self.transaction_tree.bind("<<TreeviewSelect>>", self.on_transaction_selected)
+
+        # اضافه کردن دو فیلد تاریخ
+        self.start_date_label = ttk.Label(filter_frame, text="تاریخ شروع:",
+                                          wraplength=80)  # تنظیم wraplength برای افقی شدن متن
+        self.start_date_label.grid(row=2, column=0, padx=5, pady=5)
+        self.start_date_entry = DateEntry(filter_frame)
+        self.start_date_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        self.end_date_label = ttk.Label(filter_frame, text="تاریخ پایان:",
+                                        wraplength=80)  # تنظیم wraplength برای افقی شدن متن
+        self.end_date_label.grid(row=3, column=0, padx=5, pady=5)
+        self.end_date_entry = DateEntry(filter_frame)
+        self.end_date_entry.grid(row=3, column=1, padx=5, pady=5)
+
+        # ایجاد ویجت‌های فیلتر تعداد تراکنش
+        self.transaction_count_label = ttk.Label(filter_frame, text="تعداد تراکنش:",
+                                                 wraplength=80)  # تنظیم wraplength برای افقی شدن متن
+        self.transaction_count_label.grid(row=2, column=0, padx=5, pady=5)
+        self.transaction_count_entry = ttk.Entry(filter_frame)
+        self.transaction_count_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.transaction_count_label.grid_remove()
+        self.transaction_count_entry.grid_remove()
+
+        # افزودن اسکرولبار به صفحه
+        scroll_vertical = ttk.Scrollbar(transactions_frame, orient="vertical", command=self.transaction_tree.yview)
+        scroll_vertical.pack(side="right", fill="y")
+        self.transaction_tree.configure(yscrollcommand=scroll_vertical.set)
+
+        scroll_horizontal = ttk.Scrollbar(transactions_frame, orient="horizontal", command=self.transaction_tree.xview)
+        scroll_horizontal.pack(side="bottom", fill="x")
+        self.transaction_tree.configure(xscrollcommand=scroll_horizontal.set)
+
+    def on_filter_type_selected(self, event):
+        selected_filter_type = self.filter_type_var.get()
+        if selected_filter_type == "تاریخ":
+            self.start_date_label.grid(row=2, column=0, padx=5, pady=5)
+            self.start_date_entry.grid(row=2, column=1, padx=5, pady=5)
+            self.end_date_label.grid(row=3, column=0, padx=5, pady=5)
+            self.end_date_entry.grid(row=3, column=1, padx=5, pady=5)
+            self.transaction_count_label.grid_remove()
+            self.transaction_count_entry.grid_remove()
+        elif selected_filter_type == "تعداد تراکنش":
+            self.start_date_label.grid_remove()
+            self.start_date_entry.grid_remove()
+            self.end_date_label.grid_remove()
+            self.end_date_entry.grid_remove()
+            self.transaction_count_label.grid(row=2, column=0, padx=5, pady=5)
+            self.transaction_count_entry.grid(row=2, column=1, padx=5, pady=5)
+
+    def apply_filter(self):
+        # Implement filtering logic based on the entry widget value and selected filter type
+        filter_value = self.filter_type_var.get()
+        filter_type = self.filter_type_var.get()
+        start_date = self.start_date_entry.get_date()
+        end_date = self.end_date_entry.get_date()
+        transaction_count = self.transaction_count_entry.get()
+        # Apply filter based on filter_value, filter_type, start_date, end_date, and transaction_count
+        pass
+
+    def on_transaction_selected(self, event):
+        # Implement action when a transaction is selected
+        pass
+
+
+
 class MainWindow:
     def __init__(self, id: int, email: str, username: str, first_name: str, last_name: str):
         self.root = tk.Tk()
@@ -321,6 +403,9 @@ class MainWindow:
 
         self.accounts_tab = AccountsTab(self.notebook, id)
         self.notebook.add(self.accounts_tab, text="حساب‌های بانکی")
+
+        self.transaction_tab = TransactionsTab(self.notebook, id)
+        self.notebook.add(self.transaction_tab, text="تراکنش ها")
 
         self.settings_tab = SettingsTab(self.notebook, id, email, username, first_name, last_name)
         self.notebook.add(self.settings_tab, text="تنظیمات")
