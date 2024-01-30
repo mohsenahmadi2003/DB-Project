@@ -25,6 +25,7 @@ from email_sender import EmailSender  # وارد کردن کلاس EmailSender �
 from email_message import EmailNotification  # وارد کردن کلاس EmailNotification از ماژول email_message
 from khayyam import JalaliDatetime
 import re
+from tkcalendar import DateEntry  # نیاز به نصب کتابخانه tkcalendar دارید
 
 def hash_password(password):
     # هش کردن رمز عبور با الگوریتم SHA-256
