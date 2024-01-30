@@ -11,16 +11,18 @@ BEGIN
         IF existingPassword = prevPassword THEN
             -- آپدیت رمز عبور جدید
             UPDATE USERS SET password = newPassword WHERE id = userId;
-            SELECT "رمز عبور با موفقیت به روز رسانی شد." AS Message;
+            SELECT "رمز عبور با موفقیت به روز رسانی شد." AS Message, 1 AS Result;
+
         ELSE
-            SELECT "رمز عبور قبلی اشتباه است." AS Message;
+            SELECT "رمز عبور فعلی اشتباه است." AS Message, 0 AS Result;
         END IF;
     ELSE
-        SELECT "کاربری با این شناسه وجود ندارد." AS Message;
+        SELECT "کاربری با این شناسه وجود ندارد." AS Message, 0 AS Result;
     END IF;
 END//
 
 DELIMITER ;
+
 
 
 DELIMITER //
@@ -118,14 +120,15 @@ BEGIN
     DECLARE v_username VARCHAR(32);
     DECLARE v_first_name VARCHAR(32);
     DECLARE v_last_name VARCHAR(32);
+    DECLARE v_id INT;
 
-    SELECT COUNT(*), email, username, first_name, last_name
-    INTO v_user_count, v_email, v_username, v_first_name, v_last_name
+    SELECT COUNT(*), id, email, username, first_name, last_name
+    INTO v_user_count, v_id, v_email, v_username, v_first_name, v_last_name
     FROM USERS
     WHERE username = p_username AND password = p_password;
 
     IF v_user_count > 0 THEN
-        SELECT 1 AS result, v_email AS email, v_username AS username, v_first_name AS first_name, v_last_name AS last_name;
+        SELECT 1 AS result, v_id as id, v_email AS email, v_username AS username, v_first_name AS first_name, v_last_name AS last_name;
     ELSE
         SELECT 0 AS result;
     END IF;
