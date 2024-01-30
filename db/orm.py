@@ -3,12 +3,13 @@ import mysql.connector
 import configparser
 from db_connection import DatabaseFactory
 import os
+from time import sleep
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
 # خواندن اطلاعات از فایل پیکربندی
 config = configparser.ConfigParser()
-config.read(BASEDIR+'\config.ini')
+config.read(BASEDIR + '\config.ini')
 
 # خواندن اطلاعات مورد نیاز از فایل پیکربندی
 host = config.get("database", "host")
@@ -53,9 +54,8 @@ class ORM:
 
         return result
 
-
     @staticmethod
-    def update_password(old_password: str, new_password: str):
+    def update_password(user_id: int, old_password: str, new_password: str):
         result = None
         try:
             # ایجاد اتصال به پایگاه داده
@@ -66,14 +66,15 @@ class ORM:
                 # ایجاد یک cursor برای اجرای کوئری‌ها
                 cursor = db.cursor()
 
-                # ساخت کوئری برای ایجاد تابع در پایگاه داده
-                query = f"""
-                        CALL UpdatePassword('{username}', '{password}');
-                """
+                # ساخت کوئری برای فراخوانی فرآیند در پایگاه داده
+                cursor.callproc("UpdatePassword", [user_id, old_password, new_password])
 
-                # اجرای کوئری
-                cursor.execute(query)
-                result = cursor.fetchone()
+                for data in cursor.stored_results():
+                    rows = data.fetchall()
+                    result = rows[0]
+                    break
+
+                db.commit()
 
         except mysql.connector.Error as error:
             print("خطا در اتصال به پایگاه داده MySQL:", error)
