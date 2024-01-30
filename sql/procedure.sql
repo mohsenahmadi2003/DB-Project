@@ -232,3 +232,28 @@ END //
 DELIMITER ;
 
 
+DELIMITER //
+
+CREATE PROCEDURE GetRecentTransactionsByUser(
+    IN account_number_input VARCHAR(20),
+    IN transaction_count INT
+)
+BEGIN
+    DECLARE _user_id INT;
+
+    -- یافتن شناسه‌ی کاربر بر اساس شماره حساب ورودی
+    SELECT user_id INTO _user_id FROM BANK_ACCOUNT WHERE account_number = account_number_input;
+
+    IF _user_id IS NOT NULL THEN
+        -- بازیابی تراکنش‌های اخیر کاربر
+        SELECT 1 AS Message,  id, source_account_number, destination_account_number, amount, transaction_date, status, description
+        FROM TRANSACTION AS t
+        WHERE t.source_account_number = account_number_input
+        ORDER BY t.transaction_date DESC
+        LIMIT transaction_count;
+    ELSE
+        SELECT 0 AS Message;
+    END IF;
+END //
+DELIMITER ;
+
