@@ -23,6 +23,8 @@ from time import sleep  # وارد کردن تابع sleep از ماژول time
 
 from email_sender import EmailSender  # وارد کردن کلاس EmailSender از ماژول email_sender
 from email_message import EmailNotification  # وارد کردن کلاس EmailNotification از ماژول email_message
+from khayyam import JalaliDatetime
+import re
 
 def hash_password(password):
     # هش کردن رمز عبور با الگوریتم SHA-256
