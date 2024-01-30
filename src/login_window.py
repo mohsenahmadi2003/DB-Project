@@ -1,28 +1,5 @@
-# وارد کردن ماژول‌های مورد نیاز
-from tkinter import ttk  # وارد کردن ماژول ttk از کتابخانه tkinter
-import tkinter as tk  # وارد کردن کتابخانه tkinter به عنوان tk
-import sys  # وارد کردن ماژول sys برای دسترسی به متغیرهای سیستمی
-import hashlib  # وارد کردن ماژول hashlib برای هش کردن رمز عبور
-import os  # وارد کردن ماژول os برای ارتباط با سیستم عامل
-
-BASEDIR: str = os.path.dirname(os.path.abspath(__file__))  # تعیین مسیر پایه برنامه
-orm_path = BASEDIR  # انتساب مسیر پایه به متغیر orm_path
-email_path = BASEDIR  # انتساب مسیر پایه به متغیر email_path
-orm_path: str = orm_path.replace("\src", "\db")  # جایگزینی قسمت src با db در مسیر orm_path
-email_path: str = email_path.replace("\src", "\\utils")  # جایگزینی قسمت src با utils در مسیر email_path
-
-# اضافه کردن مسیر ماژول ORM به sys.path
-sys.path.append(orm_path)  # اضافه کردن مسیر orm_path به sys.path
-sys.path.append(email_path)  # اضافه کردن مسیر email_path به sys.path
-print(email_path)  # چاپ مسیر email_path برای اطمینان از صحت آن
-
-# وارد کردن کلاس ORM از ماژول ORM
-from orm import ORM  # وارد کردن کلاس ORM از ماژول ORM
-from time import sleep  # وارد کردن تابع sleep از ماژول time
-
-from email_sender import EmailSender  # وارد کردن کلاس EmailSender از ماژول email_sender
-from email_message import EmailNotification  # وارد کردن کلاس EmailNotification از ماژول email_message
-
+from module import *
+from main_window import MainWindow
 
 # تعریف تابع برای تغییر قابلیت مشاهده یا عدم مشاهده رمز عبور
 def toggle_password_visibility():
@@ -54,21 +31,21 @@ def login():
     # اگر نتیجه برابر True بود
     if flag == True:
 
-        email = result[1]
-        username = result[2]
-        first_name = result[3]
-        last_name = result[4]
+        id = result[1]
+        email = result[2]
+        username = result[3]
+        first_name = result[4]
+        last_name = result[5]
 
-        email_sender = EmailSender()
-        email_sender.connect_email()
-
-        email_sender.send_mail(receiver=email, subject="ورود به همراه بانک",
-                               html_body=EmailNotification.login_message())
-        email_sender.close_connection()
-        print("OK")
-        sleep(5)
+        # email_sender = EmailSender()
+        # email_sender.connect_email()
+        #
+        # email_sender.send_mail(receiver=email, subject="ورود به همراه بانک",
+        #                        html_body=EmailNotification.login_message())
+        # email_sender.close_connection()
         root.destroy()  # بستن پنجره
-        # اینجا کدهای مربوط به ورود کاربر به برنامه را قرار دهید
+        print(id, email, username, first_name, last_name)
+        MainWindow(int(id), email, username, first_name, last_name)
     else:
         # در غیر اینصورت، نمایش پیام خطا به کاربر
         error_label.config(text=".نام کاربری یا رمز عبور اشتباه است")
