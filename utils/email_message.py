@@ -1,11 +1,10 @@
-from datetime import datetime
-
+from khayyam import JalaliDatetime
 
 class EmailNotification:
 
     @staticmethod
     def login_message():
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # تاریخ و زمان حال به فرمت مناسب
+        current_time = JalaliDatetime.now().strftime("%Y-%m-%d %H:%M:%S")  # تاریخ و زمان حال به فرمت مناسب
         message = """
             <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #333333; text-align: center;">ورود به حساب کاربری</h2>
