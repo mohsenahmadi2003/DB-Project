@@ -135,3 +135,100 @@ BEGIN
 END //
 
 DELIMITER ;
+
+
+
+DELIMITER //
+-- GetUserBankAccounts PROCEDURE
+CREATE PROCEDURE GetUserBankAccounts(IN user_id_input INT)
+BEGIN
+    DECLARE user_exists INT;
+
+    -- بررسی وجود کاربر با شناسه داده شده
+    SELECT COUNT(*) INTO user_exists FROM USERS WHERE id = user_id_input;
+
+    -- اگر کاربر وجود نداشته باشد، خطا برگردانید
+    IF user_exists = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid user ID.';
+    ELSE
+        -- اگر کاربر وجود داشته باشد، اطلاعات حساب‌های کاربر را برگردانید
+        SELECT
+            id,
+            user_id,
+            account_number,
+            primary_password,
+            amount,
+            rate,
+            date_opened,
+            date_closed,
+            account_status,
+            description
+        FROM BANK_ACCOUNT
+        WHERE user_id = user_id_input;
+    END IF;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+-- PROCEDURE BlockBankAccount
+CREATE PROCEDURE BlockBankAccount (
+    IN account_number_input VARCHAR(20),
+    IN description_input VARCHAR(255)
+)
+BEGIN
+    DECLARE account_exists INT;
+
+    -- شروع ترانزاکشن
+    START TRANSACTION;
+
+    -- بررسی وجود حساب بانکی با شماره حساب ورودی
+    SELECT COUNT(*) INTO account_exists FROM BANK_ACCOUNT WHERE account_number = account_number_input;
+
+    IF account_exists > 0 AND description_input IS NOT NULL THEN
+        -- وضعیت حساب را به مسدود شده تغییر می‌دهیم
+        UPDATE BANK_ACCOUNT SET account_status = TRUE, description = description_input WHERE account_number = account_number_input;
+        SELECT 'موفقیت امیز' AS Message, 1 AS Result;
+        -- تایید ترانزاکشن در صورت موفقیت
+        COMMIT;
+    ELSE
+        -- لغو ترانزاکشن در صورت عدم وجود حساب
+        ROLLBACK;
+        SELECT 'حساب با شماره وارد شده یافت نشد' AS Message, 0 AS Result;
+    END IF;
+
+END //
+
+DELIMITER ;
+
+DELIMITER //
+-- PROCEDURE GetAccountOwnerName
+CREATE PROCEDURE GetAccountOwnerName(
+    IN account_number_input VARCHAR(20)
+)
+BEGIN
+    DECLARE user_exists INT;
+    DECLARE first_name_output VARCHAR(255);
+    DECLARE last_name_output VARCHAR(255);
+    DECLARE username_output VARCHAR(255);
+
+    -- بررسی وجود کاربر با شماره حساب ورودی
+    SELECT COUNT(*) INTO user_exists FROM BANK_ACCOUNT WHERE account_number = account_number_input;
+
+    IF user_exists > 0 THEN
+        SELECT u.first_name, u.last_name, u.username
+        INTO first_name_output, last_name_output, username_output
+        FROM BANK_ACCOUNT AS b
+        INNER JOIN USERS AS u ON b.user_id = u.id
+        WHERE b.account_number = account_number_input;
+
+        SELECT 1 AS Message, first_name_output , last_name_output, username_output;
+    ELSE
+        SELECT 0 AS Messsage;
+    END IF;
+END //
+
+DELIMITER ;
+
+
