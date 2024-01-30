@@ -1,5 +1,4 @@
-from tkinter import ttk  # وارد کردن ماژول ttk از کتابخانه tkinter
-import tkinter as tk  # وارد کردن کتابخانه tkinter به عنوان tk
+from module import *
 
 class LoansTab(ttk.Frame):
     def __init__(self, parent):
@@ -94,7 +93,6 @@ class SettingsTab(ttk.Frame):
         self.username = username
         self.first_name = first_name
         self.last_name = last_name
-
         self.create_user_info_section()
         self.create_change_password_section()
 
@@ -154,11 +152,24 @@ class SettingsTab(ttk.Frame):
             self.new_password_entry.config(show="*")
 
     def change_password(self):
-        old_password = self.old_password_entry.get()
-        new_password = self.new_password_entry.get()
+        old_password: str = hash_password(self.old_password_entry.get())
+        new_password: str = hash_password(self.new_password_entry.get())
         # بررسی صحت پسوردها و اعمال تغییرات بر روی پسورد
 
-        print("پسورد با موفقیت تغییر یافت.")
+        result = ORM.update_password(user_id=int(self.id), new_password=new_password, old_password=old_password)
+        if result == False:
+            messagebox.showinfo("خطا", "خطا در اتصال به پایگاه داده")
+        else:
+            print(result)
+            msg = str(result[0])
+            status = bool(int(result[1]))
+
+            if status == True:
+                messagebox.showinfo("موفقیت", msg)
+                self.old_password_entry.delete(0, tk.END)
+                self.new_password_entry.delete(0, tk.END)
+            else:
+                messagebox.showinfo("خطا", msg)
 
 
 class MenuBar(tk.Menu):
