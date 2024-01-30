@@ -278,6 +278,19 @@ class TransactionsTab(ttk.Frame):
         filter_button = ttk.Button(filter_frame, text="اعمال", command=self.apply_filter)
         filter_button.grid(row=0, column=100, padx=5, pady=5)
 
+        # ایجاد ویجت‌های انتخاب حساب کاربر
+        user_accounts_label = ttk.Label(filter_frame, text="انتخاب حساب:")
+        user_accounts_label.grid(row=1, column=0, padx=5, pady=5)
+
+        self.user_accounts_combo = ttk.Combobox(filter_frame, state="readonly", width=25)
+        self.user_accounts_combo.grid(row=1, column=1, padx=5, pady=5)
+        self.user_accounts_combo.bind("<<ComboboxSelected>>", self.on_user_account_selected)
+
+        # افزودن حساب‌های کاربر به Combobox
+        user_accounts = ORM.get_bank_accounts(self.id)
+        self.user_accounts_combo['values'] = [f"{account[2]}" for account in
+                                              user_accounts]
+
         # ایجاد ویجت‌های انتخاب نوع فیلتر تراکنش‌ها
         filter_type_label = ttk.Label(filter_frame, text="نوع فیلتر:",
                                       wraplength=100)  # تنظیم wraplength برای افقی شدن متن
@@ -298,8 +311,8 @@ class TransactionsTab(ttk.Frame):
         transactions_label.pack()
 
         self.transaction_tree = ttk.Treeview(transactions_frame, columns=(
-        "شماره ردیف", "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش', "وضعیت تراکنش",
-        'توضیحات تراکنش'), selectmode="browse")
+            "شماره ردیف", "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش', "وضعیت تراکنش",
+            'توضیحات تراکنش'), selectmode="browse")
         self.transaction_tree.pack(fill="both", expand=True)
 
         self.transaction_tree.heading("#0", text="شماره ردیف", anchor="center")
@@ -375,18 +388,29 @@ class TransactionsTab(ttk.Frame):
 
     def apply_filter(self):
         # Implement filtering logic based on the entry widget value and selected filter type
-        filter_value = self.filter_type_var.get()
-        filter_type = self.filter_type_var.get()
+        filter_type: str = self.filter_type_var.get()
         start_date = self.start_date_entry.get_date()
         end_date = self.end_date_entry.get_date()
-        transaction_count = self.transaction_count_entry.get()
-        # Apply filter based on filter_value, filter_type, start_date, end_date, and transaction_count
+        transaction_count: int = int(self.transaction_count_entry.get())
+        account_number: str = self.user_accounts_combo.get()
+        self.transaction_tree.delete(*self.transaction_tree.get_children())
+        if filter_type == "تعداد تراکنش":
+            result: list = ORM.get_recent_transactions_by_user(account_number, transaction_count)
+            for index, transaction in enumerate(result, start=1):
+                self.transaction_tree.insert("", tk.END, text=str(index), values=(
+                transaction[2], transaction[3], transaction[4], transaction[5], 'موفق' if transaction[6] == 'Completed' else 'ناموفق', transaction[7]))
+        elif filter_type == "تاریخ":
+            # انجام فیلتر بر اساس تاریخ
+            pass
         pass
 
     def on_transaction_selected(self, event):
         # Implement action when a transaction is selected
         pass
 
+    def on_user_account_selected(self, event):
+        # Implement action when a user account is selected
+        pass
 
 
 class MainWindow:
