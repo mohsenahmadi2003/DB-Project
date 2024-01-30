@@ -1,5 +1,6 @@
 from module import *
 
+
 class LoansTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -42,33 +43,128 @@ class LoansTab(ttk.Frame):
             print("Selected Loan:", loan_info)
 
 
-class AccountsTab(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.create_accounts_table()
+import tkinter as tk
+from tkinter import ttk
 
-    def create_accounts_table(self):
-        accounts_label = ttk.Label(self, text="لیست حساب‌های بانکی")
+
+class AccountsTab(ttk.Frame):
+    def __init__(self, parent, id):
+        super().__init__(parent)
+        self.accounts: list = ORM.get_bank_accounts(id)
+        self.create_layout()
+
+    def create_layout(self):
+        # ایجاد فریم برای نمایش لیست حساب‌های بانکی
+        accounts_frame = ttk.Frame(self)
+        accounts_frame.pack(fill=tk.BOTH, expand=True)
+
+        accounts_label = ttk.Label(accounts_frame, text="لیست حساب‌های بانکی")
         accounts_label.pack()
 
-        self.accounts_tree = ttk.Treeview(self, columns=("شماره ردیف", "نام", "شماره حساب", "موجودی"),
+        self.accounts_tree = ttk.Treeview(accounts_frame, columns=("شماره ردیف", "شماره حساب", "موجودی", "وضعیت حساب"),
                                           selectmode="browse")
         self.accounts_tree.pack(fill=tk.BOTH, expand=True)
 
         self.accounts_tree.heading("#0", text="شماره ردیف", anchor="center")
         self.accounts_tree.column("#0", anchor='center')
 
-        self.accounts_tree.heading("#1", text="نام", anchor="center")
+        self.accounts_tree.heading("#1", text="شماره حساب", anchor="center")
         self.accounts_tree.column("#1", anchor='center')
 
-        self.accounts_tree.heading("#2", text="شماره حساب", anchor="center")
+        self.accounts_tree.heading("#2", text="موجودی", anchor="center")
         self.accounts_tree.column("#2", anchor='center')
 
-        self.accounts_tree.heading("#3", text="موجودی", anchor="center")
+        self.accounts_tree.heading("#3", text="وضعیت حساب", anchor="center")
         self.accounts_tree.column("#3", anchor='center')
 
-        for i in range(10):
-            self.accounts_tree.insert("", tk.END, text=str(i), values=("حساب " + str(i + 1), "1234567890", "$1000"),
+        for index, item in enumerate(self.accounts):
+            self.accounts_tree.insert("", tk.END, text=str(index), values=(f"{item[2]}", f"{item[4]}", f"{item[8]}"),
+                                      tags=('center',))
+
+        self.accounts_tree.tag_configure('center', anchor='center')
+
+        self.accounts_tree.bind("<<TreeviewSelect>>", self.on_account_selected)
+        self.accounts_tree.bind("<FocusOut>",
+                                lambda event: self.accounts_tree.selection_remove(self.accounts_tree.selection()))
+        # ایجاد فریم برای نمایش لیست حساب‌های بانکی
+        selected_account_frame = ttk.Frame(self)
+        selected_account_frame.pack(fill=tk.BOTH, expand=True)
+
+        # ایجاد ویجت‌های مربوط به اطلاعات حساب انتخاب شده
+        self.selected_account_number_label = ttk.Label(selected_account_frame, text="شماره حساب:")
+        self.selected_account_number_label.grid(row=0, column=1)
+
+        self.selected_primary_password_label = ttk.Label(selected_account_frame, text="رمز اول حساب:")
+        self.selected_primary_password_label.grid(row=1, column=1)
+
+        self.selected_amount_label = ttk.Label(selected_account_frame, text="موجودی حساب:")
+        self.selected_amount_label.grid(row=2, column=1)
+
+        self.selected_rate_label = ttk.Label(selected_account_frame, text="امتیاز حساب:")
+        self.selected_rate_label.grid(row=3, column=1)
+
+        self.selected_date_opened_label = ttk.Label(selected_account_frame, text="تاریخ افتتاح حساب:")
+        self.selected_date_opened_label.grid(row=4, column=1)
+
+        self.selected_date_closed_label = ttk.Label(selected_account_frame, text="تاریخ بسته شدن حساب:")
+        self.selected_date_closed_label.grid(row=5, column=1)
+
+        # ایجاد فریم برای نمایش لیست حساب‌های بانکی
+        selected_account_status_description_frame = ttk.Frame(self)
+        selected_account_status_description_frame.pack(fill=tk.BOTH, expand=True)
+
+        # ایجاد ویجت‌های مربوط به ویرایش توضیحات و مسدود کردن حساب
+        self.selected_description_label = ttk.Label(selected_account_status_description_frame, text="توضیحات حساب:")
+        self.selected_description_label.grid(row=6, column=1)
+
+        self.selected_description_entry = ttk.Entry(selected_account_status_description_frame)
+        self.selected_description_entry.grid(row=6, column=0)
+
+        self.selected_account_status_var = tk.IntVar()
+        self.selected_account_status_checkbutton = ttk.Checkbutton(selected_account_status_description_frame,
+                                                                   text="مسدود شدن حساب",
+                                                                   variable=self.selected_account_status_var)
+        self.selected_account_status_checkbutton.grid(row=7, column=0)
+
+        self.submit_button = ttk.Button(selected_account_status_description_frame, text="ثبت",
+                                        command=self.submit_account_changes)
+        self.submit_button.grid(row=8, column=0, columnspan=2)
+
+        # ایجاد فریم برای نمایش لیست تراکنش های بانکی
+        accounts_transaction_frame = ttk.Frame(self)
+        accounts_transaction_frame.pack(fill=tk.BOTH, expand=True)
+
+        accounts_transaction_label = ttk.Label(accounts_frame, text="لیست تراکنش های اخیر این حساب بانکی")
+        accounts_transaction_label.pack()
+
+        self.accounts_tree = ttk.Treeview(accounts_frame, columns=(
+            "شماره ردیف", "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش', "وضعیت تراکنش",
+            'توضیحات تراکنش'), selectmode="browse")
+        self.accounts_tree.pack(fill=tk.BOTH, expand=True)
+
+        self.accounts_tree.heading("#0", text="شماره ردیف", anchor="center")
+        self.accounts_tree.column("#0", anchor='center')
+
+        self.accounts_tree.heading("#1", text="شماره حساب مبدا", anchor="center")
+        self.accounts_tree.column("#1", anchor='center')
+
+        self.accounts_tree.heading("#2", text="شماره حساب مقصد", anchor="center")
+        self.accounts_tree.column("#2", anchor='center')
+
+        self.accounts_tree.heading("#3", text="مقدار انتقال", anchor="center")
+        self.accounts_tree.column("#3", anchor='center')
+
+        self.accounts_tree.heading("#4", text='تاریخ تراکنش', anchor="center")
+        self.accounts_tree.column("#4", anchor='center')
+
+        self.accounts_tree.heading("#5", text="وضعیت تراکنش", anchor="center")
+        self.accounts_tree.column("#5", anchor='center')
+
+        self.accounts_tree.heading("#6", text='توضیحات تراکنش', anchor="center")
+        self.accounts_tree.column("#6", anchor='center')
+
+        for index, item in enumerate(self.result):
+            self.accounts_tree.insert("", tk.END, text=str(index), values=(f"{item[2]}", f"{item[4]}", f"{item[8]}"),
                                       tags=('center',))
 
         self.accounts_tree.tag_configure('center', anchor='center')
@@ -77,12 +173,34 @@ class AccountsTab(ttk.Frame):
         self.accounts_tree.bind("<FocusOut>",
                                 lambda event: self.accounts_tree.selection_remove(self.accounts_tree.selection()))
 
+    def submit_account_changes(self):
+        description = self.selected_description_entry.get()
+        is_account_blocked = self.selected_account_status_var.get()
+        account_number = self.selected_account_number_label.cget("text")
+        account_number = re.findall(r'\d+', account_number)[0]
+
+        if is_account_blocked == 1:
+            result = ORM.block_bank_account(account_number, description)[0]
+            if bool(int(result[1])) == True:
+                messagebox.showinfo("موفقیت", result[0])
+            else:
+                messagebox.showinfo("خطا", result[0])
+
     def on_account_selected(self, event):
         selected_items = self.accounts_tree.selection()
         if selected_items:
             selected_item = selected_items[0]
             account_info = self.accounts_tree.item(selected_item, "values")
-            print("Selected Bank Account:", account_info)
+            data = list(filter(lambda x: x[2] == str(account_info[0]), self.accounts))[0]
+            self.selected_account_number_label.config(text=f"شماره حساب: {data[2]}")
+            self.selected_primary_password_label.config(text=f"رمز اول حساب: {data[3]}", anchor='center')
+            self.selected_amount_label.config(text=f"موجودی حساب: {data[4]}")
+            self.selected_rate_label.config(text=f"امتیاز حساب: {data[5]}")
+            self.selected_date_opened_label.config(text=f"تاریخ افتتاح حساب: {data[6]}")
+            self.selected_date_closed_label.config(text=f"تاریخ بسته شدن حساب: {data[7]}")
+            self.selected_description_entry.delete(0, tk.END)  # پاک کردن محتویات اولیه توضیحات
+            self.selected_description_entry.insert(0, data[9])  # وارد کردن توضیحات از دیتابیس
+            self.selected_account_status_var.set(data[8])  # تنظیم وضعیت مسدودی حساب
 
 
 class SettingsTab(ttk.Frame):
@@ -194,11 +312,6 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("Bank Details")
         self.root.geometry("800x600")
-        # self.id = id
-        # self.email = email
-        # self.username = username
-        # self.first_name = first_name
-        # self.last_name = last_name
 
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True)
@@ -206,7 +319,7 @@ class MainWindow:
         self.loans_tab = LoansTab(self.notebook)
         self.notebook.add(self.loans_tab, text="وام‌ها")
 
-        self.accounts_tab = AccountsTab(self.notebook)
+        self.accounts_tab = AccountsTab(self.notebook, id)
         self.notebook.add(self.accounts_tab, text="حساب‌های بانکی")
 
         self.settings_tab = SettingsTab(self.notebook, id, email, username, first_name, last_name)
