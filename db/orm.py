@@ -88,3 +88,74 @@ class ORM:
                 print("اتصال MySQL بسته شد.")
 
         return result
+
+    @staticmethod
+    def get_bank_accounts(user_id: int):
+        result = []
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                cursor.callproc("GetUserBankAccounts", [user_id])
+
+                # اجرای کوئری با ورودی‌های مورد نیاز تابع
+                for data in cursor.stored_results():
+                    rows = data.fetchall()
+                    for row in rows:
+                        result.append(row)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+    @staticmethod
+    def block_bank_account(account_number: str, description: str):
+        result = []
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                cursor.callproc("BlockBankAccount", [account_number, description])
+
+                # اجرای کوئری با ورودی‌های مورد نیاز تابع
+                for data in cursor.stored_results():
+                    rows = data.fetchall()
+                    for row in rows:
+                        result.append(row)
+
+                db.commit()
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+
+# print(ORM.block_bank_account("12345678901234567891", ""))
