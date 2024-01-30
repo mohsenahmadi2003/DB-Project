@@ -1,6 +1,7 @@
 from module import *
 from main_window import MainWindow
 
+
 # تعریف تابع برای تغییر قابلیت مشاهده یا عدم مشاهده رمز عبور
 def toggle_password_visibility():
     if password_entry.cget("show") == "":
@@ -9,12 +10,6 @@ def toggle_password_visibility():
     else:
         password_entry.config(show="")
         toggle_password_button.config(text="پنهان کردن رمز")
-
-
-def hash_password(password):
-    # هش کردن رمز عبور با الگوریتم SHA-256
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
-    return hashed_password
 
 
 # تعریف تابع برای ورود به سیستم
