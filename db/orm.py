@@ -157,5 +157,37 @@ class ORM:
 
         return result
 
+    @staticmethod
+    def get_recent_transactions_by_user(account_number: str, limit: int):
+        result = []
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
 
-# print(ORM.block_bank_account("12345678901234567891", ""))
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                cursor.callproc("GetRecentTransactionsByUser", [account_number, limit])
+
+                # اجرای کوئری با ورودی‌های مورد نیاز تابع
+                for data in cursor.stored_results():
+                    rows = data.fetchall()
+                    for row in rows:
+                        result.append(row)
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+# print(ORM.get_recent_transactions_by_user("12345678901234567891", 5))
