@@ -408,7 +408,8 @@ class TransactionsTab(ttk.Frame):
                     for index, transaction in enumerate(result, start=1):
                         self.transaction_tree.insert("", tk.END, text=str(index),
                                                      values=('برداشت' if transaction[8] == 'Withdraw' else 'واریز',
-                                                             transaction[2], transaction[3], transaction[4], transaction[5],
+                                                             transaction[2], transaction[3], transaction[4],
+                                                             transaction[5],
                                                              'موفق' if transaction[6] == 'Completed' else 'ناموفق',
                                                              transaction[7], "----"))
             else:
@@ -440,6 +441,102 @@ class TransactionsTab(ttk.Frame):
         pass
 
 
+class TransferFundsTab(ttk.Frame):
+    def __init__(self, parent, id):
+        super().__init__(parent)
+        self.id = id
+        self.create_layout()
+
+    def create_layout(self):
+        frame = ttk.Frame(self)
+        frame.pack(expand=True, fill="both")  # وسط چین و ابعاد بزرگ
+
+        # عنوان صفحه
+        title_label = ttk.Label(frame, text="انتقال وجه", font=("Helvetica", 24))
+        title_label.grid(row=1, column=0, columnspan=3, pady=(50, 20))
+
+        # انتخاب حساب مبدا
+        self.source_account_label = ttk.Label(frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
+        self.source_account_label.grid(row=2, column=0, sticky=tk.W, pady=10)
+
+        self.source_account_combobox = ttk.Combobox(frame, values=["حساب 1", "حساب 2", "حساب 3"],
+                                                    font=("Helvetica", 16))
+        self.source_account_combobox.grid(row=2, column=1, sticky=tk.W, pady=10)
+
+        # ورود شماره حساب مقصد
+        self.destination_account_label = ttk.Label(frame, text="شماره حساب مقصد:", font=("Helvetica", 16))
+        self.destination_account_label.grid(row=3, column=0, sticky=tk.W, pady=10)
+
+        self.destination_account_entry = ttk.Entry(frame, font=("Helvetica", 16))
+        self.destination_account_entry.grid(row=3, column=1, sticky=tk.W, pady=10)
+
+        self.check_button = ttk.Button(frame, text="بررسی شماره حساب مقصد", command=self.check_destination_account,
+                                       width=20)  # افزایش ابعاد دکمه
+        self.check_button.grid(row=3, column=2, sticky=tk.W, pady=10)
+
+        # مقدار انتقال
+        self.transfer_amount_label = ttk.Label(frame, text="مقدار انتقال:", font=("Helvetica", 16))
+        self.transfer_amount_label.grid(row=4, column=0, sticky=tk.W, pady=10)
+
+        self.transfer_amount_entry = ttk.Entry(frame, font=("Helvetica", 16))
+        self.transfer_amount_entry.grid(row=4, column=1, sticky=tk.W, pady=10)
+
+        # گزینه انتقال وجه
+        self.transfer_button = ttk.Button(frame, text="انتقال وجه", command=self.show_password_entry, width=30)  # افزایش ابعاد دکمه
+        self.transfer_button.grid(row=5, column=0, columnspan=3, pady=20)
+
+    def show_password_entry(self):
+        # ایجاد یک بخش برای ورود رمز دوم
+        password_frame = ttk.Frame(self)
+        password_frame.pack(fill="x", expand=False)
+
+        self.password_label = ttk.Label(password_frame, text="رمز دوم:", font=("Helvetica", 16))
+        self.password_label.grid(row=0, column=0, sticky=tk.W)
+
+        self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16))
+        self.password_entry.grid(row=0, column=1, sticky=tk.W)
+
+        self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer,
+                                         width=20)  # افزایش ابعاد دکمه
+        self.confirm_button.grid(row=0, column=2, sticky=tk.W)
+
+    def check_destination_account(self):
+        # کد بررسی شماره حساب مقصد
+        destination_account_number = self.destination_account_entry.get()
+        # اگر شماره حساب مقصد معتبر است
+        if self.is_valid_destination_account(destination_account_number):
+            # نمایش نام شماره حساب مقصد به کاربر
+            tk.messagebox.showinfo("نتیجه",
+                                   f"نام شماره حساب مقصد: {self.get_destination_account_name(destination_account_number)}")
+        else:
+            tk.messagebox.showerror("خطا", "شماره حساب مقصد نامعتبر است!")
+
+    def is_valid_destination_account(self, account_number):
+        # کد بررسی شماره حساب مقصد در پایگاه داده
+        pass
+
+    def confirm_transfer(self):
+        # بررسی رمز دوم
+        second_password = self.password_entry.get()
+        if self.is_valid_second_password(second_password):
+            self.transfer_funds()
+        else:
+            tk.messagebox.showerror("خطا", "رمز دوم اشتباه است!")
+
+    def is_valid_second_password(self, second_password):
+        # کد بررسی رمز دوم
+        pass
+
+    def get_destination_account_name(self, account_number):
+        # کد بازگشت نام شماره حساب مقصد از پایگاه داده
+        pass
+
+    def transfer_funds(self):
+        # کد انتقال وجه
+        pass
+
+
+
 class MainWindow:
     def __init__(self, id: int, email: str, username: str, first_name: str, last_name: str):
         self.root = tk.Tk()
@@ -457,6 +554,9 @@ class MainWindow:
 
         self.transaction_tab = TransactionsTab(self.notebook, id)
         self.notebook.add(self.transaction_tab, text="تراکنش ها")
+
+        self.transfer_funds_tab = TransferFundsTab(self.notebook, id)
+        self.notebook.add(self.transfer_funds_tab, text="انتقال وجه")
 
         self.settings_tab = SettingsTab(self.notebook, id, email, username, first_name, last_name)
         self.notebook.add(self.settings_tab, text="تنظیمات")
