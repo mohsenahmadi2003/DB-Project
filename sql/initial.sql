@@ -67,7 +67,6 @@ CREATE TABLE `TRANSACTION` (
     transaction_date TIMESTAMP,
     status VARCHAR(10),
     description VARCHAR(255),
-    transaction_type VARCHAR(10), -- فیلد جدید برای نوع تراکنش (واریز یا برداشت)
     FOREIGN KEY (source_account_number) REFERENCES BANK_ACCOUNT(account_number),
     FOREIGN KEY (destination_account_number) REFERENCES BANK_ACCOUNT(account_number)
 );
