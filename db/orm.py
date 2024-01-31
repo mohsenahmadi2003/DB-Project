@@ -223,4 +223,54 @@ class ORM:
 
         return result
 
-print(ORM.calculate_account_balance_with_date("12345678901234567891", '2027-01-05 00:00:00', '2025-05-05 00:00:00'))
+
+    @staticmethod
+    def transfer_funds(source_account_number: str, destination_account_number: str, transfer_amount: str):
+        result: str = ""
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    # اجرای پراسیجر TransferFunds با ورودی‌های مورد نیاز
+                    cursor.callproc("TransferFunds",
+                                    [source_account_number, destination_account_number, transfer_amount, None])
+                    db.commit()
+                    success_message = cursor.fetchone()[3]  # دریافت پیام موفقیت
+                    print(success_message)
+                    result = success_message
+
+                except mysql.connector.Error as error:
+                    # Rollback تراکنش در صورت بروز خطا
+                    db.rollback()
+
+                    # بررسی خطای حجم کافی موجودی در حساب مبدا
+                    if error.errno == 45000:
+                        print("Insufficient balance in the source account")
+                    else:
+                        print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+
+
+# print(ORM.calculate_account_balance_with_date("12345678901234567891", '2027-01-05 00:00:00', '2025-05-05 00:00:00'))
