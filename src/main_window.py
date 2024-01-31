@@ -43,10 +43,6 @@ class LoansTab(ttk.Frame):
             print("Selected Loan:", loan_info)
 
 
-import tkinter as tk
-from tkinter import ttk
-
-
 class AccountsTab(ttk.Frame):
     def __init__(self, parent, id):
         super().__init__(parent)
@@ -311,30 +307,37 @@ class TransactionsTab(ttk.Frame):
         transactions_label.pack()
 
         self.transaction_tree = ttk.Treeview(transactions_frame, columns=(
-            "شماره ردیف", "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش', "وضعیت تراکنش",
-            'توضیحات تراکنش'), selectmode="browse")
+            "شماره ردیف", 'واریز / برداشت', "شماره حساب مبدا", "شماره حساب مقصد", "مقدار انتقال", 'تاریخ تراکنش',
+            "وضعیت تراکنش",
+            'توضیحات تراکنش', 'موجودی حساب تا این تراکنش'), selectmode="browse")
         self.transaction_tree.pack(fill="both", expand=True)
 
         self.transaction_tree.heading("#0", text="شماره ردیف", anchor="center")
         self.transaction_tree.column("#0", anchor='center')
 
-        self.transaction_tree.heading("#1", text="شماره حساب مبدا", anchor="center")
+        self.transaction_tree.heading("#1", text='واریز / برداشت', anchor="center")
         self.transaction_tree.column("#1", anchor='center')
 
-        self.transaction_tree.heading("#2", text="شماره حساب مقصد", anchor="center")
+        self.transaction_tree.heading("#2", text="شماره حساب مبدا", anchor="center")
         self.transaction_tree.column("#2", anchor='center')
 
-        self.transaction_tree.heading("#3", text="مقدار انتقال", anchor="center")
+        self.transaction_tree.heading("#3", text="شماره حساب مقصد", anchor="center")
         self.transaction_tree.column("#3", anchor='center')
 
-        self.transaction_tree.heading("#4", text='تاریخ تراکنش', anchor="center")
+        self.transaction_tree.heading("#4", text="مقدار انتقال", anchor="center")
         self.transaction_tree.column("#4", anchor='center')
 
-        self.transaction_tree.heading("#5", text="وضعیت تراکنش", anchor="center")
+        self.transaction_tree.heading("#5", text='تاریخ تراکنش', anchor="center")
         self.transaction_tree.column("#5", anchor='center')
 
-        self.transaction_tree.heading("#6", text='توضیحات تراکنش', anchor="center")
+        self.transaction_tree.heading("#6", text="وضعیت تراکنش", anchor="center")
         self.transaction_tree.column("#6", anchor='center')
+
+        self.transaction_tree.heading("#7", text='توضیحات تراکنش', anchor="center")
+        self.transaction_tree.column("#7", anchor='center')
+
+        self.transaction_tree.heading("#8", text='موجودی حساب تا این تراکنش', anchor="center")
+        self.transaction_tree.column("#8", anchor='center')
 
         self.transaction_tree.bind("<<TreeviewSelect>>", self.on_transaction_selected)
 
@@ -356,6 +359,7 @@ class TransactionsTab(ttk.Frame):
                                                  wraplength=80)  # تنظیم wraplength برای افقی شدن متن
         self.transaction_count_label.grid(row=2, column=0, padx=5, pady=5)
         self.transaction_count_entry = ttk.Entry(filter_frame)
+        self.transaction_count_entry.insert(0, "1")
         self.transaction_count_entry.grid(row=2, column=1, padx=5, pady=5)
         self.transaction_count_label.grid_remove()
         self.transaction_count_entry.grid_remove()
@@ -389,20 +393,43 @@ class TransactionsTab(ttk.Frame):
     def apply_filter(self):
         # Implement filtering logic based on the entry widget value and selected filter type
         filter_type: str = self.filter_type_var.get()
-        start_date = self.start_date_entry.get_date()
-        end_date = self.end_date_entry.get_date()
-        transaction_count: int = int(self.transaction_count_entry.get())
         account_number: str = self.user_accounts_combo.get()
         self.transaction_tree.delete(*self.transaction_tree.get_children())
         if filter_type == "تعداد تراکنش":
-            result: list = ORM.get_recent_transactions_by_user(account_number, transaction_count)
-            for index, transaction in enumerate(result, start=1):
-                self.transaction_tree.insert("", tk.END, text=str(index), values=(
-                transaction[2], transaction[3], transaction[4], transaction[5], 'موفق' if transaction[6] == 'Completed' else 'ناموفق', transaction[7]))
+            transaction_count = self.transaction_count_entry.get()
+            if transaction_count.isdigit() and int(transaction_count) != 0:
+                transaction_count = int(transaction_count)
+                result: list = ORM.get_recent_transactions_by_user(account_number, transaction_count)
+                if result == False:
+                    messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
+                elif bool(int(result[0][0])) == False:
+                    messagebox.showerror("خطا", "اطلاعاتی یافت نشد")
+                else:
+                    for index, transaction in enumerate(result, start=1):
+                        self.transaction_tree.insert("", tk.END, text=str(index),
+                                                     values=('برداشت' if transaction[8] == 'Withdraw' else 'واریز',
+                                                             transaction[2], transaction[3], transaction[4], transaction[5],
+                                                             'موفق' if transaction[6] == 'Completed' else 'ناموفق',
+                                                             transaction[7], "----"))
+            else:
+                messagebox.showerror("خطا", "تعداد باید یک عدد مثبت باشد")
         elif filter_type == "تاریخ":
-            # انجام فیلتر بر اساس تاریخ
-            pass
-        pass
+            start_date = self.start_date_entry.get_date()
+            end_date = self.end_date_entry.get_date()
+            print(start_date, end_date)
+            result: list = ORM.calculate_account_balance_with_date(account_number, start_date, end_date)
+            if result == False:
+                messagebox.showerror("خطا", "خطا در اتصال به پایگاه داده")
+            elif bool(int(result[0][0])) == False:
+                messagebox.showerror("خطا", "تاریخ ها اشتباه وارد شده اند")
+            else:
+                for index, transaction in enumerate(result, start=1):
+                    transaction = list(transaction)
+                    self.transaction_tree.insert("", tk.END, text=str(index),
+                                                 values=('برداشت' if transaction[8] == 'Withdraw' else 'واریز',
+                                                         transaction[1], transaction[2], transaction[3], transaction[4],
+                                                         'موفق' if transaction[5] == 'Completed' else 'ناموفق',
+                                                         transaction[6], transaction[7]))
 
     def on_transaction_selected(self, event):
         # Implement action when a transaction is selected
