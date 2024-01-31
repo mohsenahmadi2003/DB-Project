@@ -312,3 +312,40 @@ END //
 
 DELIMITER ;
 
+
+DELIMITER //
+
+CREATE PROCEDURE TransferFunds(
+    IN source_account_number VARCHAR(20),
+    IN destination_account_number VARCHAR(20),
+    IN transfer_amount NUMERIC(10, 2)
+)
+BEGIN
+    DECLARE source_balance NUMERIC(20, 2);
+    DECLARE destination_balance NUMERIC(20, 2);
+
+    -- Start transaction
+    START TRANSACTION;
+
+    -- Check if the source account has sufficient balance
+    SELECT amount INTO source_balance FROM BANK_ACCOUNT WHERE account_number = source_account_number;
+    IF source_balance < transfer_amount THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient balance in the source account';
+    END IF;
+
+    -- Deduct amount from source account
+    UPDATE BANK_ACCOUNT SET amount = amount - transfer_amount WHERE account_number = source_account_number;
+
+    -- Add amount to destination account
+    UPDATE BANK_ACCOUNT SET amount = amount + transfer_amount WHERE account_number = destination_account_number;
+
+    -- Insert transaction record
+    INSERT INTO `TRANSACTION` (source_account_number, destination_account_number, amount, transaction_date, status, description)
+    VALUES (source_account_number, destination_account_number, transfer_amount, NOW(), 'Completed', 'Transfer from ' || source_account_number || ' to ' || destination_account_number);
+
+    -- Commit transaction
+    COMMIT;
+END //
+DELIMITER ;
+
