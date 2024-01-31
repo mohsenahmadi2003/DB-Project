@@ -190,4 +190,37 @@ class ORM:
 
         return result
 
-# print(ORM.get_recent_transactions_by_user("12345678901234567891", 5))
+    @staticmethod
+    def calculate_account_balance_with_date(account_number: str, start_date: str, end_date: str):
+        result = []
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                cursor.callproc("CalculateAccountBalance", [account_number, start_date, end_date])
+                # اجرای کوئری با ورودی‌های مورد نیاز تابع
+                for data in cursor.stored_results():
+                    rows = data.fetchall()
+                    for row in rows:
+                        if len(list(row)) == 9 or len(list(row)) == 2:
+                            result.append(row)
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+print(ORM.calculate_account_balance_with_date("12345678901234567891", '2027-01-05 00:00:00', '2025-05-05 00:00:00'))
