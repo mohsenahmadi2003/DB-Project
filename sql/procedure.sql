@@ -233,7 +233,6 @@ DELIMITER ;
 
 
 DELIMITER //
-
 CREATE PROCEDURE GetRecentTransactionsByUser(
     IN account_number_input VARCHAR(20),
     IN transaction_count INT
@@ -246,7 +245,11 @@ BEGIN
 
     IF _user_id IS NOT NULL THEN
         -- بازیابی تراکنش‌های اخیر کاربر
-        SELECT 1 AS Message,  id, source_account_number, destination_account_number, amount, transaction_date, status, description
+        SELECT 1 AS Message, id, source_account_number, destination_account_number, amount, transaction_date, status, description,
+               CASE
+                   WHEN source_account_number = account_number_input THEN 'Withdraw'
+                   ELSE 'Deposit'
+               END AS transaction_type
         FROM TRANSACTION AS t
         WHERE t.source_account_number = account_number_input
         ORDER BY t.transaction_date DESC
@@ -255,5 +258,57 @@ BEGIN
         SELECT 0 AS Message;
     END IF;
 END //
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE CalculateAccountBalance(
+    IN account_number VARCHAR(20),
+    IN start_date TIMESTAMP,
+    IN end_date TIMESTAMP
+)
+BEGIN
+    DECLARE balance NUMERIC(20, 2);
+    -- Check if start_date is less than end_date and both are of type TIMESTAMP
+    IF start_date < end_date THEN
+
+        -- Calculate balance at the start date by summing up previous transactions
+        SELECT COALESCE(SUM(CASE
+                            WHEN source_account_number = account_number THEN -amount
+                            ELSE amount
+                        END), 0)
+        INTO balance
+        FROM `TRANSACTION`
+        WHERE (source_account_number = account_number OR destination_account_number = account_number)
+        AND transaction_date < start_date;
+
+        -- Iterate through transactions between start_date and end_date
+        SELECT id, source_account_number, destination_account_number, amount, transaction_date, status, description
+        FROM `TRANSACTION`
+        WHERE (source_account_number = account_number OR destination_account_number = account_number)
+        AND transaction_date BETWEEN start_date AND end_date
+        ORDER BY transaction_date ASC;
+
+        -- Calculate balance changes during the specified period and display transactions
+        SELECT 1 AS Status, source_account_number, destination_account_number, amount, transaction_date, status, description,
+               CASE
+                   WHEN source_account_number = account_number THEN @balance := @balance - amount
+                   ELSE @balance := @balance + amount
+               END AS new_balance,
+               CASE
+                   WHEN source_account_number = account_number THEN 'Withdraw'
+                   ELSE 'Deposit'
+               END AS transaction_type
+        FROM (SELECT @balance := balance) AS balance_init, `TRANSACTION`
+        WHERE (source_account_number = account_number OR destination_account_number = account_number)
+        AND transaction_date BETWEEN start_date AND end_date
+        ORDER BY transaction_date ASC;
+    ELSE
+        SELECT 0 AS Status, 'تاریخ ها اشتباه وارد شده اند' AS Message;
+    END IF;
+
+END //
+
 DELIMITER ;
 
