@@ -13,7 +13,8 @@ BEGIN
     INTO owner_name
     FROM BANK_ACCOUNT ba
              INNER JOIN USERS u ON ba.user_id = u.id
-    WHERE ba.account_number = account_number AND account_status = 1;
+    WHERE ba.account_number = account_number
+      AND account_status = 1;
 
     -- بررسی اینکه آیا اطلاعاتی یافت شده یا نه
     IF owner_name IS NULL THEN
@@ -51,7 +52,7 @@ END$$
 
 DELIMITER ;
 
-
+DELIMITER $$
 
 CREATE FUNCTION ValidateTransactionAmount(amount NUMERIC(10, 2)) RETURNS BOOLEAN
     NO SQL
@@ -62,3 +63,41 @@ BEGIN
         RETURN TRUE;
     END IF;
 END;
+
+DELIMITER ;
+
+CREATE FUNCTION GetEmailWithAccountNumber(_account_number VARCHAR(20)) RETURNS VARCHAR(32)
+    READS SQL DATA
+BEGIN
+
+    DECLARE _email VARCHAR(32);
+    DECLARE _user_id INT;
+
+    SELECT user_id
+    INTO _user_id
+    FROM bank_account
+    WHERE account_number = _account_number;
+
+    SELECT email
+    INTO _email
+    FROM users
+    WHERE id = _user_id;
+
+    RETURN _email;
+END;
+
+CREATE FUNCTION GetAmountAccount(_account_number VARCHAR(20)) RETURNS DECIMAL(20,2)
+    READS SQL DATA
+BEGIN
+
+    DECLARE balance DECIMAL(20,2);
+
+    SELECT amount
+    INTO balance
+    FROM bank_account
+    WHERE account_number = _account_number;
+
+    RETURN balance;
+END;
+
+
