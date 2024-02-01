@@ -497,6 +497,10 @@ class TransferFundsTab(ttk.Frame):
         title_label = ttk.Label(frame, text="انتقال وجه", font=("Helvetica", 24))
         title_label.grid(row=0, column=0, columnspan=3, pady=(20, 30))  # پایین و بالا
 
+        self.check_button = ttk.Button(frame, text="آپدیت اطلاعات", command=self.update_date,
+                                       width=20)
+        self.check_button.grid(row=1, column=2, sticky=tk.W, pady=10)
+
         self.source_account_label = ttk.Label(frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
         self.source_account_label.grid(row=1, column=0, sticky=tk.W, pady=10)
 
@@ -569,6 +573,16 @@ class TransferFundsTab(ttk.Frame):
         self.source_account_combobox.config(state="readonly")
         self.cancel_button.grid_forget()
 
+        self.update_date()
+
+    def update_date(self):
+        print("update")
+        self.source_account_combobox.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
+
+        user_accounts = ORM.get_bank_accounts(self.id)
+
+        self.source_account_combobox['values'] = [f"{account[2]}" for account in
+                                              user_accounts if account[8] == 0]
     def toggle_password_visibility(self):
         if self.password_entry.cget("show") == "":
             self.password_entry.config(show="*")
