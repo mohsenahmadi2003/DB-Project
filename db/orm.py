@@ -539,7 +539,70 @@ class ORM:
 
         return result[0]
 
+
+    @staticmethod
+    def get_email_with_account_number(account_number: str):
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT GetEmailWithAccountNumber({account_number})")
+                result = cursor.fetchone()
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
+
+    @staticmethod
+    def get_amount_account(account_number: str):
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT GetAmountAccount({account_number})")
+                result = cursor.fetchone()
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
-# print(ORM.secondary_password(transaction_id=16, source_account_number='12345678901234567891'))
+# print(ORM.get_amount_account(account_number='12345678901234567891'))
