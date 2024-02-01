@@ -30,3 +30,37 @@ class EmailNotification:
         """
 
         return message
+
+    @staticmethod
+    def deposite(amount: str, deposite_amount: str, account_number: str):
+        current_time = JalaliDatetime.now().strftime("%Y-%m-%d %H:%M:%S")  # تاریخ و زمان حال به فرمت مناسب
+        message = f"""
+            <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333333; text-align: center;">بانک</h2>
+                <hr style="border: 0; border-top: 1px solid #eee;">
+                <p style="color: #666666; font-size: 16px;">کارت</p>
+                <p style="color: #666666; font-size: 16px;">واریز به {account_number}</p>
+                <p style="color: #666666; font-size: 16px;">مبلغ {deposite_amount}</p>
+                <p style="color: #666666; font-size: 16px;">موجودی {amount}</p>
+                <p style="color: #666666; font-size: 16px;">زمان تراکنش: <span style="color: #0066cc;">{current_time}</span></p>
+            </div>
+        """
+
+        return message
+
+    @staticmethod
+    def withdraw(amount: str, withdraw_amount: str, account_number: str):
+        current_time = JalaliDatetime.now().strftime("%Y-%m-%d %H:%M:%S")  # تاریخ و زمان حال به فرمت مناسب
+        message = f"""
+            <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333333; text-align: center;">بانک</h2>
+                <hr style="border: 0; border-top: 1px solid #eee;">
+                <p style="color: #666666; font-size: 16px;">کارت</p>
+                <p style="color: #666666; font-size: 16px;">برداشت از {account_number}</p>
+                <p style="color: #666666; font-size: 16px;">مبلغ {withdraw_amount}</p>
+                <p style="color: #666666; font-size: 16px;">موجودی {amount}</p>
+                <p style="color: #666666; font-size: 16px;">زمان تراکنش: <span style="color: #0066cc;">{current_time}</span></p>
+            </div>
+        """
+
+        return message
