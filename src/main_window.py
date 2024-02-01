@@ -445,6 +445,7 @@ class TransferFundsTab(ttk.Frame):
     def __init__(self, parent, id):
         super().__init__(parent)
         self.id = id
+        self.tranaction_id = None
         self.user_accounts = ORM.get_bank_accounts(id)
         self.create_layout()
 
@@ -457,7 +458,6 @@ class TransferFundsTab(ttk.Frame):
 
         self.source_account_label = ttk.Label(frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
         self.source_account_label.grid(row=1, column=0, sticky=tk.W, pady=10)
-
 
         self.source_account_combobox = ttk.Combobox(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
         self.source_account_combobox.grid(row=1, column=1, sticky=tk.W, pady=10)
@@ -489,7 +489,7 @@ class TransferFundsTab(ttk.Frame):
         self.description_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
         self.description_entry.grid(row=4, column=1, sticky=tk.W, pady=10, columnspan=2)
 
-        self.transfer_button = ttk.Button(frame, text="انتقال وجه", command=self.show_password_entry, width=30)
+        self.transfer_button = ttk.Button(frame, text="انتقال وجه", command=self.create_transaction, width=30)
         self.transfer_button.grid(row=5, column=0, columnspan=3, pady=20)  # ردیف بعدی
 
         self.cancel_button = ttk.Button(frame, text="لغو تراکنش", command=self.cancel_transaction, width=30)
@@ -500,34 +500,79 @@ class TransferFundsTab(ttk.Frame):
         password_frame.pack(fill="x", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
 
         self.password_label = ttk.Label(password_frame, text="رمز دوم:", font=("Helvetica", 16))
-        self.password_label.grid(row=0, column=0, sticky=tk.W)
+        self.password_label.grid(row=0, column=1, sticky=tk.W)
 
         self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16), width=30)  # ابعاد زیادتر
-        self.password_entry.grid(row=0, column=1, sticky=tk.W)
+        self.password_entry.grid(row=0, column=2, sticky=tk.W)
 
         self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer, width=20)
-        self.confirm_button.grid(row=0, column=2, sticky=tk.W)  # سمت راست
+        self.confirm_button.grid(row=0, column=3, sticky=tk.W)  # سمت راست
+
+        self.request_secondary_password_button = ttk.Button(password_frame, text="درخواست رمز دوم",
+                                                            command=self.request_secondary_password, width=20)
+        self.request_secondary_password_button.grid(row=0, column=4, sticky=tk.W)  # سمت راست
 
         self.password_label.grid_forget()
         self.password_entry.grid_forget()
         self.confirm_button.grid_forget()
+        self.request_secondary_password_button.grid_forget()
 
         self.source_account_combobox.config(state="readonly")
         self.cancel_button.grid_forget()
+
+    def disable_button(self):
+        self.request_secondary_password_button.config(state=tk.DISABLED)
+
+    def enable_button(self):
+        self.request_secondary_password_button.config(state=tk.NORMAL)
+
+    def clicked(self):
+        self.disable_button()
+        self.after(15000, self.enable_button)  # 120000 میلی ثانیه معادل 2 دقیقه است
+
+    def request_secondary_password(self):
+        source_account_number: str = self.source_account_combobox.get()
+        result = ORM.secondary_password(self.tranaction_id, source_account_number)
+        if result == False:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در اتصال به پایگاه داده")
+            return
+        elif int(result[0]) == 1:
+            tk.messagebox.showinfo("نتیجه",
+                                   "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا دو دقیقه بیشتر اعتبار ندارد.")
+
+        else:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در ثبت و ارسال رمز دوم")
+
+        self.clicked()
 
     def cancel_transaction(self):
         confirm_cancel = tk.messagebox.askyesno("تایید لغو تراکنش",
                                                 "آیا مطمئن هستید که می‌خواهید این تراکنش را لغو کنید؟")
         if confirm_cancel:
-            self.enable_fields()
-            self.clear_fields()
-            self.password_label.grid_remove()
-            self.password_entry.grid_forget()
-            self.confirm_button.grid_forget()  # حذف دکمه لغو تراکنش از نمایش
-            self.cancel_button.config(state="disabled")
-            self.source_account_combobox.config(state="readonly")
-            self.cancel_button.grid_forget()
-            self.source_account_combobox.set(self.user_accounts[0][2])
+
+            result = ORM.cancel_transaction(self.tranaction_id)
+            if result == False:
+                tk.messagebox.showerror("خطا",
+                                        "خطا در اتصال به پایگاه داده")
+                return
+            elif (int(result[0])) == 1:
+                self.enable_fields()
+                self.clear_fields()
+                self.password_label.grid_remove()
+                self.password_entry.grid_forget()
+                self.confirm_button.grid_forget()  # حذف دکمه لغو تراکنش از نمایش
+                self.cancel_button.config(state="disabled")
+                self.source_account_combobox.config(state="readonly")
+                self.cancel_button.grid_forget()
+                self.request_secondary_password_button.grid_forget()
+                self.source_account_combobox.set(self.user_accounts[0][2])
+                tk.messagebox.showinfo("نتیجه",
+                                       "تراکنش با موفقیت لغو شد")
+            elif (int(result[0])) == 0:
+                tk.messagebox.showerror("خطا",
+                                        "تراکنش لغو نشد")
 
     def clear_fields(self):
         self.source_account_combobox.set("")
@@ -542,7 +587,7 @@ class TransferFundsTab(ttk.Frame):
         self.transfer_amount_entry.config(state="normal")
         self.description_entry.config(state="normal")
 
-    def show_password_entry(self):
+    def create_transaction(self):
         # ایجاد یک بخش برای ورود رمز دوم
 
         source_account_number: str = self.source_account_combobox.get()
@@ -554,28 +599,41 @@ class TransferFundsTab(ttk.Frame):
 
         if self.is_valid_destination_account(destination_account_number) == False:
             tk.messagebox.showerror("خطا",
-                                   f"نام شماره حساب مقصد نا معتبر")
+                                    f"نام شماره حساب مقصد نا معتبر")
         elif validate_amount == False:
             tk.messagebox.showerror("خطا",
                                     "مبلغ قابل انتقال نا معتبر هست")
         else:
 
-            result = ORM.transfer_funds(source_account_number, destination_account_number, transfer_amount, description,
-                                        self.id)
+            result = ORM.create_transaction(source_account_number, destination_account_number, transfer_amount,
+                                            description)
+            if result == False:
+                tk.messagebox.showerror("خطا",
+                                        "خطا در اتصال به پایگاه داده")
+                return
+            else:
+                if bool(int(result[0])) == True:
 
-            self.password_label.grid()
-            self.password_entry.grid()
+                    self.tranaction_id = result[1]
 
-            self.confirm_button.grid()  # نمایش
+                    self.password_label.grid()
+                    self.password_entry.grid()
 
-            # قفل کردن ورودی‌ها پس از کلیک بر روی دکمه انتقال وجه
-            self.source_account_combobox.config(state="disabled")
-            self.destination_account_entry.config(state="disabled")
-            self.transfer_amount_entry.config(state="disabled")
-            self.description_entry.config(state="disabled")
-            self.transfer_button.config(state="disabled")
-            self.cancel_button.config(state="normal")
-            self.cancel_button.grid()
+                    self.confirm_button.grid()  # نمایش
+
+                    # قفل کردن ورودی‌ها پس از کلیک بر روی دکمه انتقال وجه
+                    self.source_account_combobox.config(state="disabled")
+                    self.destination_account_entry.config(state="disabled")
+                    self.transfer_amount_entry.config(state="disabled")
+                    self.description_entry.config(state="disabled")
+                    self.transfer_button.config(state="disabled")
+                    self.cancel_button.config(state="normal")
+                    self.cancel_button.grid()
+                    self.request_secondary_password_button.config(state="normal")
+                    self.request_secondary_password_button.grid()
+                else:
+                    tk.messagebox.showerror("خطا",
+                                            "خطا ثبت تراکنش")
 
     def check_destination_account(self):
         # کد بررسی شماره حساب مقصد
@@ -590,7 +648,6 @@ class TransferFundsTab(ttk.Frame):
 
         else:
             tk.messagebox.showerror("خطا", "شماره حساب مقصد نامعتبر است!")
-
 
     def is_valid_destination_account(self, account_number):
         result: str = ORM.check_destination_account(account_number)
@@ -617,6 +674,7 @@ class TransferFundsTab(ttk.Frame):
     def transfer_funds(self):
         # کد انتقال وجه
         pass
+
 
 class MainWindow:
     def __init__(self, id: int, email: str, username: str, first_name: str, last_name: str):
