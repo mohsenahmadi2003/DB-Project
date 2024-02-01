@@ -319,8 +319,6 @@ CREATE PROCEDURE TransferFunds(
 )
 BEGIN
     DECLARE source_balance NUMERIC(20, 2);
-    DECLARE destination_balance NUMERIC(20, 2);
-
 
     -- Start transaction
     START TRANSACTION;
@@ -329,7 +327,7 @@ BEGIN
     SELECT amount INTO source_balance FROM BANK_ACCOUNT WHERE account_number = source_account_number;
     IF source_balance < transfer_amount THEN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient balance in the source account';
+        SELECT 0 AS Mesagge;
     END IF;
 
     -- Deduct amount from source account
@@ -343,6 +341,8 @@ BEGIN
 
     -- Commit transaction
     COMMIT;
+
+    SELECT 1 AS Mesagge;
 END //
 DELIMITER ;
 
