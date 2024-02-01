@@ -392,11 +392,11 @@ BEGIN
         IF exist_secondary_password = 1 THEN
             UPDATE SECONDARY_PASSWORDS
             SET secondary_password = _secondary_password,
-                expire_time        = NOW() + INTERVAL 20 SECOND
+                expire_time        = NOW() + INTERVAL 60 SECOND
             WHERE transaction_id = t_id;
         ELSE
             INSERT INTO SECONDARY_PASSWORDS (bank_account_number, transaction_id, secondary_password, expire_time)
-            VALUES (source_account_number_input, t_id, _secondary_password, NOW() + INTERVAL 20 SECOND);
+            VALUES (source_account_number_input, t_id, _secondary_password, NOW() + INTERVAL 60 SECOND);
 
         END IF;
 
