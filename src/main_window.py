@@ -445,75 +445,158 @@ class TransferFundsTab(ttk.Frame):
     def __init__(self, parent, id):
         super().__init__(parent)
         self.id = id
+        self.user_accounts = ORM.get_bank_accounts(id)
         self.create_layout()
 
     def create_layout(self):
         frame = ttk.Frame(self)
-        frame.pack(expand=True, fill="both")  # وسط چین و ابعاد بزرگ
+        frame.pack(expand=True, fill="both", padx=20, pady=20)  # ابعاد بزرگ و فاصله از لبه‌ها
 
-        # عنوان صفحه
         title_label = ttk.Label(frame, text="انتقال وجه", font=("Helvetica", 24))
-        title_label.grid(row=1, column=0, columnspan=3, pady=(50, 20))
+        title_label.grid(row=0, column=0, columnspan=3, pady=(20, 30))  # پایین و بالا
 
-        # انتخاب حساب مبدا
         self.source_account_label = ttk.Label(frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
-        self.source_account_label.grid(row=2, column=0, sticky=tk.W, pady=10)
+        self.source_account_label.grid(row=1, column=0, sticky=tk.W, pady=10)
 
-        self.source_account_combobox = ttk.Combobox(frame, values=["حساب 1", "حساب 2", "حساب 3"],
-                                                    font=("Helvetica", 16))
-        self.source_account_combobox.grid(row=2, column=1, sticky=tk.W, pady=10)
 
-        # ورود شماره حساب مقصد
+        self.source_account_combobox = ttk.Combobox(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
+        self.source_account_combobox.grid(row=1, column=1, sticky=tk.W, pady=10)
+
+        self.source_account_combobox['values'] = [f"{account[2]}" for account in
+                                                  self.user_accounts]
+
+        self.source_account_combobox.set(self.user_accounts[0][2])
+
         self.destination_account_label = ttk.Label(frame, text="شماره حساب مقصد:", font=("Helvetica", 16))
-        self.destination_account_label.grid(row=3, column=0, sticky=tk.W, pady=10)
+        self.destination_account_label.grid(row=2, column=0, sticky=tk.W, pady=10)
 
-        self.destination_account_entry = ttk.Entry(frame, font=("Helvetica", 16))
-        self.destination_account_entry.grid(row=3, column=1, sticky=tk.W, pady=10)
+        self.destination_account_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
+        self.destination_account_entry.grid(row=2, column=1, sticky=tk.W, pady=10)
 
         self.check_button = ttk.Button(frame, text="بررسی شماره حساب مقصد", command=self.check_destination_account,
-                                       width=20)  # افزایش ابعاد دکمه
-        self.check_button.grid(row=3, column=2, sticky=tk.W, pady=10)
+                                       width=20)
+        self.check_button.grid(row=2, column=2, sticky=tk.W, pady=10)
 
-        # مقدار انتقال
         self.transfer_amount_label = ttk.Label(frame, text="مقدار انتقال:", font=("Helvetica", 16))
-        self.transfer_amount_label.grid(row=4, column=0, sticky=tk.W, pady=10)
+        self.transfer_amount_label.grid(row=3, column=0, sticky=tk.W, pady=10)
 
-        self.transfer_amount_entry = ttk.Entry(frame, font=("Helvetica", 16))
-        self.transfer_amount_entry.grid(row=4, column=1, sticky=tk.W, pady=10)
+        self.transfer_amount_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
+        self.transfer_amount_entry.grid(row=3, column=1, sticky=tk.W, pady=10)
 
-        # گزینه انتقال وجه
-        self.transfer_button = ttk.Button(frame, text="انتقال وجه", command=self.show_password_entry, width=30)  # افزایش ابعاد دکمه
-        self.transfer_button.grid(row=5, column=0, columnspan=3, pady=20)
+        self.description_label = ttk.Label(frame, text="توضیحات:", font=("Helvetica", 16))
+        self.description_label.grid(row=4, column=0, sticky=tk.W, pady=10)
 
-    def show_password_entry(self):
-        # ایجاد یک بخش برای ورود رمز دوم
+        self.description_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
+        self.description_entry.grid(row=4, column=1, sticky=tk.W, pady=10, columnspan=2)
+
+        self.transfer_button = ttk.Button(frame, text="انتقال وجه", command=self.show_password_entry, width=30)
+        self.transfer_button.grid(row=5, column=0, columnspan=3, pady=20)  # ردیف بعدی
+
+        self.cancel_button = ttk.Button(frame, text="لغو تراکنش", command=self.cancel_transaction, width=30)
+        self.cancel_button.grid(row=6, column=0, columnspan=3, pady=20)  # ردیف بعدی
+        self.cancel_button.config(state="disabled")
+
         password_frame = ttk.Frame(self)
-        password_frame.pack(fill="x", expand=False)
+        password_frame.pack(fill="x", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
 
         self.password_label = ttk.Label(password_frame, text="رمز دوم:", font=("Helvetica", 16))
         self.password_label.grid(row=0, column=0, sticky=tk.W)
 
-        self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16))
+        self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16), width=30)  # ابعاد زیادتر
         self.password_entry.grid(row=0, column=1, sticky=tk.W)
 
-        self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer,
-                                         width=20)  # افزایش ابعاد دکمه
-        self.confirm_button.grid(row=0, column=2, sticky=tk.W)
+        self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer, width=20)
+        self.confirm_button.grid(row=0, column=2, sticky=tk.W)  # سمت راست
+
+        self.password_label.grid_forget()
+        self.password_entry.grid_forget()
+        self.confirm_button.grid_forget()
+
+        self.source_account_combobox.config(state="readonly")
+        self.cancel_button.grid_forget()
+
+    def cancel_transaction(self):
+        confirm_cancel = tk.messagebox.askyesno("تایید لغو تراکنش",
+                                                "آیا مطمئن هستید که می‌خواهید این تراکنش را لغو کنید؟")
+        if confirm_cancel:
+            self.enable_fields()
+            self.clear_fields()
+            self.password_label.grid_remove()
+            self.password_entry.grid_forget()
+            self.confirm_button.grid_forget()  # حذف دکمه لغو تراکنش از نمایش
+            self.cancel_button.config(state="disabled")
+            self.source_account_combobox.config(state="readonly")
+            self.cancel_button.grid_forget()
+            self.source_account_combobox.set(self.user_accounts[0][2])
+
+    def clear_fields(self):
+        self.source_account_combobox.set("")
+        self.destination_account_entry.delete(0, tk.END)
+        self.transfer_amount_entry.delete(0, tk.END)
+        self.description_entry.delete(0, tk.END)
+
+    def enable_fields(self):
+        self.source_account_combobox.config(state="readonly")
+        self.destination_account_entry.config(state="normal")
+        self.transfer_button.config(state="normal")
+        self.transfer_amount_entry.config(state="normal")
+        self.description_entry.config(state="normal")
+
+    def show_password_entry(self):
+        # ایجاد یک بخش برای ورود رمز دوم
+
+        source_account_number: str = self.source_account_combobox.get()
+        transfer_amount: str = self.transfer_amount_entry.get()
+        description: str = self.description_entry.get()
+        destination_account_number: str = self.destination_account_entry.get()
+
+        validate_amount = ORM.validate_transaction_amount(amount=transfer_amount)
+
+        if self.is_valid_destination_account(destination_account_number) == False:
+            tk.messagebox.showerror("خطا",
+                                   f"نام شماره حساب مقصد نا معتبر")
+        elif validate_amount == False:
+            tk.messagebox.showerror("خطا",
+                                    "مبلغ قابل انتقال نا معتبر هست")
+        else:
+
+            result = ORM.transfer_funds(source_account_number, destination_account_number, transfer_amount, description,
+                                        self.id)
+
+            self.password_label.grid()
+            self.password_entry.grid()
+
+            self.confirm_button.grid()  # نمایش
+
+            # قفل کردن ورودی‌ها پس از کلیک بر روی دکمه انتقال وجه
+            self.source_account_combobox.config(state="disabled")
+            self.destination_account_entry.config(state="disabled")
+            self.transfer_amount_entry.config(state="disabled")
+            self.description_entry.config(state="disabled")
+            self.transfer_button.config(state="disabled")
+            self.cancel_button.config(state="normal")
+            self.cancel_button.grid()
 
     def check_destination_account(self):
         # کد بررسی شماره حساب مقصد
-        destination_account_number = self.destination_account_entry.get()
+        destination_account_number: str = self.destination_account_entry.get()
+
         # اگر شماره حساب مقصد معتبر است
-        if self.is_valid_destination_account(destination_account_number):
+        if name := self.is_valid_destination_account(destination_account_number):
             # نمایش نام شماره حساب مقصد به کاربر
             tk.messagebox.showinfo("نتیجه",
-                                   f"نام شماره حساب مقصد: {self.get_destination_account_name(destination_account_number)}")
+                                   f"نام شماره حساب مقصد: {name}")
+            # self.destination_account_entry.config(state="readonly")
+
         else:
             tk.messagebox.showerror("خطا", "شماره حساب مقصد نامعتبر است!")
 
+
     def is_valid_destination_account(self, account_number):
-        # کد بررسی شماره حساب مقصد در پایگاه داده
-        pass
+        result: str = ORM.check_destination_account(account_number)
+        if result != 'Not found':
+            return result
+        return False
 
     def confirm_transfer(self):
         # بررسی رمز دوم
@@ -534,8 +617,6 @@ class TransferFundsTab(ttk.Frame):
     def transfer_funds(self):
         # کد انتقال وجه
         pass
-
-
 
 class MainWindow:
     def __init__(self, id: int, email: str, username: str, first_name: str, last_name: str):
