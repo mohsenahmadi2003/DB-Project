@@ -46,7 +46,7 @@ class LoansTab(ttk.Frame):
 class AccountsTab(ttk.Frame):
     def __init__(self, parent, id):
         super().__init__(parent)
-        self.accounts: list = ORM.get_bank_accounts(id)
+        self.id = id
         self.create_layout()
 
     def create_layout(self):
@@ -73,18 +73,17 @@ class AccountsTab(ttk.Frame):
         self.accounts_tree.heading("#3", text="وضعیت حساب", anchor="center")
         self.accounts_tree.column("#3", anchor='center')
 
-        for index, item in enumerate(self.accounts):
-            self.accounts_tree.insert("", tk.END, text=str(index), values=(f"{item[2]}", f"{item[4]}", f"{item[8]}"),
-                                      tags=('center',))
+        self.update_data_accounts()
 
         self.accounts_tree.tag_configure('center', anchor='center')
 
         self.accounts_tree.bind("<<TreeviewSelect>>", self.on_account_selected)
         self.accounts_tree.bind("<FocusOut>",
                                 lambda event: self.accounts_tree.selection_remove(self.accounts_tree.selection()))
+
         # ایجاد فریم برای نمایش لیست حساب‌های بانکی
         selected_account_frame = ttk.Frame(self)
-        selected_account_frame.pack(fill=tk.BOTH, expand=True)
+        selected_account_frame.pack()
 
         # ایجاد ویجت‌های مربوط به اطلاعات حساب انتخاب شده
         self.selected_account_number_label = ttk.Label(selected_account_frame, text="شماره حساب:")
@@ -107,7 +106,7 @@ class AccountsTab(ttk.Frame):
 
         # ایجاد فریم برای نمایش لیست حساب‌های بانکی
         selected_account_status_description_frame = ttk.Frame(self)
-        selected_account_status_description_frame.pack(fill=tk.BOTH, expand=True)
+        selected_account_status_description_frame.pack()
 
         # ایجاد ویجت‌های مربوط به ویرایش توضیحات و مسدود کردن حساب
         self.selected_description_label = ttk.Label(selected_account_status_description_frame, text="توضیحات حساب:")
@@ -125,6 +124,24 @@ class AccountsTab(ttk.Frame):
         self.submit_button = ttk.Button(selected_account_status_description_frame, text="ثبت",
                                         command=self.submit_account_changes)
         self.submit_button.grid(row=8, column=0, columnspan=2)
+
+        # ایجاد ویجت آپدیت
+        self.update_button = ttk.Button(selected_account_status_description_frame, text="آپدیت اطلاعات",
+                                        command=self.update_data_accounts)
+        self.update_button.grid(row=9, column=0, columnspan=2)
+
+    def update_data_accounts(self):
+        # پاک کردن اطلاعات قبلی
+        for item in self.accounts_tree.get_children():
+            self.accounts_tree.delete(item)
+
+        # دریافت اطلاعات جدید از دیتابیس
+        self.accounts = ORM.get_bank_accounts(self.id)
+
+        for index, item in enumerate(self.accounts):
+            self.accounts_tree.insert("", tk.END, text=str(index),
+                                      values=(f"{item[2]}", f"{item[4]}", f"{'باز' if item[8] == 0 else 'مسدود'}"),
+                                      tags=('center',))
 
     def submit_account_changes(self):
         description = self.selected_description_entry.get()
@@ -153,7 +170,15 @@ class AccountsTab(ttk.Frame):
             self.selected_date_closed_label.config(text=f"تاریخ بسته شدن حساب: {data[7]}")
             self.selected_description_entry.delete(0, tk.END)  # پاک کردن محتویات اولیه توضیحات
             self.selected_description_entry.insert(0, data[9])  # وارد کردن توضیحات از دیتابیس
-            self.selected_account_status_var.set(data[8])  # تنظیم وضعیت مسدودی حساب
+            print(data)
+            if bool(data[8]) == True:
+                self.selected_description_entry.config(state='disabled')
+                self.selected_account_status_checkbutton.config(state='disabled')
+                self.submit_button.config(state='disabled')
+            else:
+                self.selected_description_entry.config(state='normal')
+                self.selected_account_status_checkbutton.config(state='normal')
+                self.submit_button.config(state='normal')
 
 
 class SettingsTab(ttk.Frame):
@@ -252,12 +277,12 @@ class MenuBar(tk.Menu):
         file_menu.add_command(label="خروج", command=master.quit)
 
         # ایجاد منوی "تنظیمات"
-        settings_menu = tk.Menu(self, tearoff=0)
-        settings_menu.add_command(label="رفرش")
+        # settings_menu = tk.Menu(self, tearoff=0)
+        # settings_menu.add_command(label="رفرش", comm)
 
         # اضافه کردن منوها به منوبار
         self.add_cascade(label="فایل", menu=file_menu)
-        self.add_cascade(label="آپدیت اطلاعات", menu=settings_menu)
+        # self.add_cascade(label="آپدیت اطلاعات", menu=settings_menu)
 
 
 class TransactionsTab(ttk.Frame):
@@ -283,10 +308,10 @@ class TransactionsTab(ttk.Frame):
         self.user_accounts_combo.bind("<<ComboboxSelected>>", self.on_user_account_selected)
 
         # افزودن حساب‌های کاربر به Combobox
-        user_accounts = ORM.get_bank_accounts(self.id)
-        self.user_accounts_combo['values'] = [f"{account[2]}" for account in
-                                              user_accounts]
+        update_date_button = ttk.Button(filter_frame, text="آپدیت اطلاعات", command=self.update_date)
+        update_date_button.grid(row=0, column=120, padx=5, pady=5)
 
+        self.update_date()
         # ایجاد ویجت‌های انتخاب نوع فیلتر تراکنش‌ها
         filter_type_label = ttk.Label(filter_frame, text="نوع فیلتر:",
                                       wraplength=100)  # تنظیم wraplength برای افقی شدن متن
@@ -373,6 +398,15 @@ class TransactionsTab(ttk.Frame):
         scroll_horizontal.pack(side="bottom", fill="x")
         self.transaction_tree.configure(xscrollcommand=scroll_horizontal.set)
 
+    def update_date(self):
+        print("update")
+        self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
+
+        user_accounts = ORM.get_bank_accounts(self.id)
+
+        self.user_accounts_combo['values'] = [f"{account[2]}" for account in
+                                              user_accounts if account[8] == 0]
+
     def on_filter_type_selected(self, event):
         selected_filter_type = self.filter_type_var.get()
         if selected_filter_type == "تاریخ":
@@ -400,8 +434,11 @@ class TransactionsTab(ttk.Frame):
             if transaction_count.isdigit() and int(transaction_count) != 0:
                 transaction_count = int(transaction_count)
                 result: list = ORM.get_recent_transactions_by_user(account_number, transaction_count)
+                print(result)
                 if result == False:
                     messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
+                elif result == []:
+                    messagebox.showerror("خطا", "تراکنشی یافت نشد!")
                 elif bool(int(result[0][0])) == False:
                     messagebox.showerror("خطا", "اطلاعاتی یافت نشد")
                 else:
@@ -419,8 +456,11 @@ class TransactionsTab(ttk.Frame):
             end_date = self.end_date_entry.get_date()
             print(start_date, end_date)
             result: list = ORM.calculate_account_balance_with_date(account_number, start_date, end_date)
+            print(result)
             if result == False:
                 messagebox.showerror("خطا", "خطا در اتصال به پایگاه داده")
+            elif result == []:
+                messagebox.showerror("خطا", "تراکنشی یافت نشد!")
             elif bool(int(result[0][0])) == False:
                 messagebox.showerror("خطا", "تاریخ ها اشتباه وارد شده اند")
             else:
@@ -462,9 +502,9 @@ class TransferFundsTab(ttk.Frame):
 
         self.source_account_combobox = ttk.Combobox(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
         self.source_account_combobox.grid(row=1, column=1, sticky=tk.W, pady=10)
-
+        print(self.user_accounts)
         self.source_account_combobox['values'] = [f"{account[2]}" for account in
-                                                  self.user_accounts]
+                                                  self.user_accounts if account[8] == 0]
 
         self.source_account_combobox.set(self.user_accounts[0][2])
 
@@ -513,13 +553,29 @@ class TransferFundsTab(ttk.Frame):
                                                             command=self.request_secondary_password, width=20)
         self.request_secondary_password_button.grid(row=0, column=4, sticky=tk.W)  # سمت راست
 
+        self.toggle_password_button = ttk.Button(password_frame, text="پنهان کردن رمز",
+                                                 command=self.toggle_password_visibility,
+                                                 cursor="hand2",
+                                                 style="TButton")  # تغییر اندازه فونت و دکمه‌ها
+
+        self.toggle_password_button.grid(row=0, column=5, padx=5, pady=5)
+
         self.password_label.grid_forget()
         self.password_entry.grid_forget()
         self.confirm_button.grid_forget()
         self.request_secondary_password_button.grid_forget()
+        self.toggle_password_button.grid_forget()
 
         self.source_account_combobox.config(state="readonly")
         self.cancel_button.grid_forget()
+
+    def toggle_password_visibility(self):
+        if self.password_entry.cget("show") == "":
+            self.password_entry.config(show="*")
+            self.toggle_password_button.config(text="نمایش رمز")
+        else:
+            self.password_entry.config(show="")
+            self.toggle_password_button.config(text="پنهان کردن رمز")
 
     def disable_button(self):
         self.request_secondary_password_button.config(state=tk.DISABLED)
@@ -529,16 +585,18 @@ class TransferFundsTab(ttk.Frame):
 
     def clicked(self):
         self.disable_button()
-        self.after(15000, self.enable_button)  # 120000 میلی ثانیه معادل 2 دقیقه است
+        self.after(20000, self.enable_button)  # 120000 میلی ثانیه معادل 2 دقیقه است
 
     def request_secondary_password(self):
         source_account_number: str = self.source_account_combobox.get()
         result = ORM.secondary_password(self.tranaction_id, source_account_number)
+        print(result)
         if result == False:
             tk.messagebox.showerror("خطا",
                                     "خطا در اتصال به پایگاه داده")
             return
         elif int(result[0]) == 1:
+            self.clicked()
             tk.messagebox.showinfo("نتیجه",
                                    "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا دو دقیقه بیشتر اعتبار ندارد.")
 
@@ -548,12 +606,11 @@ class TransferFundsTab(ttk.Frame):
             email_sender.send_mail(receiver=self.email, subject="رمز دوم",
                                    html_body=EmailNotification.secondary_password(result[1]))
             email_sender.close_connection()
+            print("رمز ارسال شد")
 
         else:
             tk.messagebox.showerror("خطا",
                                     "خطا در ثبت و ارسال رمز دوم")
-
-        self.clicked()
 
     def cancel_transaction(self):
         confirm_cancel = tk.messagebox.askyesno("تایید لغو تراکنش",
@@ -576,6 +633,8 @@ class TransferFundsTab(ttk.Frame):
                 self.cancel_button.grid_forget()
                 self.request_secondary_password_button.grid_forget()
                 self.source_account_combobox.set(self.user_accounts[0][2])
+                self.toggle_password_button.grid_forget()
+
                 tk.messagebox.showinfo("نتیجه",
                                        "تراکنش با موفقیت لغو شد")
             elif (int(result[0])) == 0:
@@ -639,6 +698,8 @@ class TransferFundsTab(ttk.Frame):
                     self.cancel_button.grid()
                     self.request_secondary_password_button.config(state="normal")
                     self.request_secondary_password_button.grid()
+                    self.toggle_password_button.config(state="normal")
+                    self.toggle_password_button.grid()
                 else:
                     tk.messagebox.showerror("خطا",
                                             "خطا ثبت تراکنش")
@@ -666,27 +727,60 @@ class TransferFundsTab(ttk.Frame):
     def confirm_transfer(self):
         second_password = self.password_entry.get()
         result = ORM.check_secondary_password(self.tranaction_id, second_password)
+        print('result - check_secondary_password', result)
         if result == False:
             tk.messagebox.showerror("خطا",
                                     "خطا در اتصال به پایگاه داده")
             return
             # بررسی رمز دوم
-        elif int(result[0]) == 1:
+        elif int(result) == 1:
             source_account_number: str = self.source_account_combobox.get()
-            transfer_amount: str = self.transfer_amount_entry.get()
+            transfer_amount: int = int(self.transfer_amount_entry.get())
             destination_account_number: str = self.destination_account_entry.get()
 
             output = ORM.transfer_funds(source_account_number=source_account_number,
                                         destination_account_number=destination_account_number,
-                                        transfer_amount=transfer_amount, transaction_id=self.tranaction_id)
-
+                                        transfer_amount=transfer_amount,
+                                        transaction_id=int(self.tranaction_id))
+            print('output = ', output)
             if output == False:
                 tk.messagebox.showerror("خطا",
                                         "خطا در اتصال به پایگاه داده")
                 return
             elif int(output[0]) == 1:
                 tk.messagebox.showinfo("موفقیت",
-                                        "تراکنش با موفقیت انجام شد")
+                                       "تراکنش با موفقیت انجام شد")
+
+                email_sender = EmailSender()
+                email_sender.connect_email()
+
+                send_amount = ORM.get_amount_account(source_account_number)
+
+                email_sender.send_mail(receiver=self.email, subject="ّبرداشت",
+                                       html_body=EmailNotification.withdraw(send_amount, transfer_amount,
+                                                                            source_account_number))
+
+                recive_amount = ORM.get_amount_account(destination_account_number)
+                recive_email = ORM.get_email_with_account_number(destination_account_number)
+
+                email_sender.send_mail(receiver=recive_email, subject="واریز",
+                                       html_body=EmailNotification.deposite(recive_amount, transfer_amount,
+                                                                            destination_account_number))
+                email_sender.close_connection()
+
+                self.enable_fields()
+                self.clear_fields()
+                self.password_label.grid_remove()
+                self.password_entry.grid_forget()
+                self.confirm_button.grid_forget()  # حذف دکمه لغو تراکنش از نمایش
+                self.cancel_button.config(state="disabled")
+                self.source_account_combobox.config(state="readonly")
+                self.cancel_button.grid_forget()
+                self.request_secondary_password_button.grid_forget()
+                self.source_account_combobox.set(self.user_accounts[0][2])
+                self.toggle_password_button.grid_forget()
+
+
             else:
                 tk.messagebox.showerror("خطا", "موجودی حساب کافی نیست!")
 
