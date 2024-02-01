@@ -29,25 +29,15 @@ DELIMITER ;
 
 DELIMITER $$
 
-CREATE FUNCTION CheckSecondaryPassword(_transaction_id INT, secondary_password VARCHAR(8)) RETURNS INT
+CREATE FUNCTION CheckSecondaryPassword(_transaction_id INT, _secondary_password VARCHAR(8)) RETURNS INT
     READS SQL DATA
-BEGIN
+    RETURN (
+        SELECT IFNULL(
+            (SELECT 1 FROM secondary_passwords WHERE transaction_id = _transaction_id AND secondary_password = _secondary_password AND NOW() < expire_time LIMIT 1),
+            0
+        )
+    );
 
-    DECLARE password VARCHAR(8) DEFAULT NULL;
-    DECLARE time TIMESTAMP DEFAULT NOW();
-
-    SELECT secondary_password
-    INTO password
-    FROM secondary_passwords
-    WHERE transaction_id = _transaction_id AND time < expire_time;
-
-    IF password = secondary_password THEN
-        RETURN 1;
-    ELSE
-        RETURN 0;
-    END IF;
-
-END$$
 
 DELIMITER ;
 
