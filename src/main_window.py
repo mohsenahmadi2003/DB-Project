@@ -542,27 +542,31 @@ class TransferFundsTab(ttk.Frame):
         self.cancel_button.config(state="disabled")
 
         password_frame = ttk.Frame(self)
-        password_frame.pack(fill="x", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
+        password_frame.pack(fill="y", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
+        # password_frame.grid(row=3, column=3)
+
+        password_frame = ttk.Frame(self)
+        password_frame.pack(fill="y", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
 
         self.password_label = ttk.Label(password_frame, text="رمز دوم:", font=("Helvetica", 16))
-        self.password_label.grid(row=0, column=1, sticky=tk.W)
+        self.password_label.grid(row=0, column=0, sticky=tk.W)
 
         self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16), width=30)  # ابعاد زیادتر
-        self.password_entry.grid(row=0, column=2, sticky=tk.W)
-
-        self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer, width=20)
-        self.confirm_button.grid(row=0, column=3, sticky=tk.W)  # سمت راست
-
-        self.request_secondary_password_button = ttk.Button(password_frame, text="درخواست رمز دوم",
-                                                            command=self.request_secondary_password, width=20)
-        self.request_secondary_password_button.grid(row=0, column=4, sticky=tk.W)  # سمت راست
+        self.password_entry.grid(row=0, column=1, sticky=tk.W)
 
         self.toggle_password_button = ttk.Button(password_frame, text="پنهان کردن رمز",
                                                  command=self.toggle_password_visibility,
                                                  cursor="hand2",
                                                  style="TButton")  # تغییر اندازه فونت و دکمه‌ها
 
-        self.toggle_password_button.grid(row=0, column=5, padx=5, pady=5)
+        self.toggle_password_button.grid(row=0, column=2, padx=5, pady=5)
+
+        self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer, width=20)
+        self.confirm_button.grid(row=1, column=1, sticky=tk.W)  # سمت راست
+
+        self.request_secondary_password_button = ttk.Button(password_frame, text="درخواست رمز دوم",
+                                                            command=self.request_secondary_password, width=20)
+        self.request_secondary_password_button.grid(row=1, column=2, sticky=tk.W)
 
         self.password_label.grid_forget()
         self.password_entry.grid_forget()
@@ -582,7 +586,8 @@ class TransferFundsTab(ttk.Frame):
         user_accounts = ORM.get_bank_accounts(self.id)
 
         self.source_account_combobox['values'] = [f"{account[2]}" for account in
-                                              user_accounts if account[8] == 0]
+                                                  user_accounts if account[8] == 0]
+
     def toggle_password_visibility(self):
         if self.password_entry.cget("show") == "":
             self.password_entry.config(show="*")
@@ -599,7 +604,7 @@ class TransferFundsTab(ttk.Frame):
 
     def clicked(self):
         self.disable_button()
-        self.after(20000, self.enable_button)  # 120000 میلی ثانیه معادل 2 دقیقه است
+        self.after(60000, self.enable_button)  # 60000 میلی ثانیه معادل 1 دقیقه است
 
     def request_secondary_password(self):
         source_account_number: str = self.source_account_combobox.get()
@@ -612,7 +617,7 @@ class TransferFundsTab(ttk.Frame):
         elif int(result[0]) == 1:
             self.clicked()
             tk.messagebox.showinfo("نتیجه",
-                                   "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا دو دقیقه بیشتر اعتبار ندارد.")
+                                   "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا یک دقیقه بیشتر اعتبار ندارد.")
 
             email_sender = EmailSender()
             email_sender.connect_email()
@@ -641,6 +646,7 @@ class TransferFundsTab(ttk.Frame):
                 self.clear_fields()
                 self.password_label.grid_remove()
                 self.password_entry.grid_forget()
+                self.password_entry.delete(0, tk.END)
                 self.confirm_button.grid_forget()  # حذف دکمه لغو تراکنش از نمایش
                 self.cancel_button.config(state="disabled")
                 self.source_account_combobox.config(state="readonly")
@@ -714,6 +720,7 @@ class TransferFundsTab(ttk.Frame):
                     self.request_secondary_password_button.grid()
                     self.toggle_password_button.config(state="normal")
                     self.toggle_password_button.grid()
+
                 else:
                     tk.messagebox.showerror("خطا",
                                             "خطا ثبت تراکنش")
@@ -740,11 +747,11 @@ class TransferFundsTab(ttk.Frame):
 
     def confirm_transfer(self):
         second_password = self.password_entry.get()
+        print(f"{second_password=}")
         result = ORM.check_secondary_password(self.tranaction_id, second_password)
         print('result - check_secondary_password', result)
-        if result == False:
-            tk.messagebox.showerror("خطا",
-                                    "خطا در اتصال به پایگاه داده")
+        if result == 0:
+            tk.messagebox.showerror("خطا", "رمز دوم نا معتبر هست!")
             return
             # بررسی رمز دوم
         elif int(result) == 1:
@@ -784,8 +791,10 @@ class TransferFundsTab(ttk.Frame):
 
                 self.enable_fields()
                 self.clear_fields()
-                self.password_label.grid_remove()
+                self.password_label.grid_forget()
                 self.password_entry.grid_forget()
+                self.password_entry.delete(0, tk.END)
+
                 self.confirm_button.grid_forget()  # حذف دکمه لغو تراکنش از نمایش
                 self.cancel_button.config(state="disabled")
                 self.source_account_combobox.config(state="readonly")
@@ -797,6 +806,9 @@ class TransferFundsTab(ttk.Frame):
 
             else:
                 tk.messagebox.showerror("خطا", "موجودی حساب کافی نیست!")
+        else:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در اتصال به پایگاه داده")
 
 
 class MainWindow:
