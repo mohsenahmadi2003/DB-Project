@@ -81,8 +81,7 @@ BEGIN
                account_status,
                description
         FROM BANK_ACCOUNT
-        WHERE user_id = user_id_input
-          AND account_status = 1;
+        WHERE user_id = user_id_input;
     END IF;
 END //
 
@@ -108,7 +107,8 @@ BEGIN
         -- وضعیت حساب را به مسدود شده تغییر می‌دهیم
         UPDATE BANK_ACCOUNT
         SET account_status = TRUE,
-            description    = description_input
+            description    = description_input,
+            date_closed    = NOW()
         WHERE account_number = account_number_input;
         SELECT 'موفقیت امیز' AS Message, 1 AS Result;
         -- تایید ترانزاکشن در صورت موفقیت
@@ -180,6 +180,7 @@ BEGIN
                    END AS transaction_type
         FROM TRANSACTION AS t
         WHERE t.source_account_number = account_number_input
+           OR t.destination_account_number = account_number_input
         ORDER BY t.transaction_date DESC
         LIMIT transaction_count;
     ELSE
@@ -328,21 +329,23 @@ BEGIN
     IF source_balance < transfer_amount THEN
         ROLLBACK;
         SELECT 0 AS Mesagge;
+
+    ELSE
+        -- Deduct amount from source account
+        UPDATE BANK_ACCOUNT SET amount = amount - transfer_amount WHERE account_number = source_account_number;
+
+        -- Add amount to destination account
+        UPDATE BANK_ACCOUNT SET amount = amount + transfer_amount WHERE account_number = destination_account_number;
+
+
+        UPDATE TRANSACTION SET status = 'Completed' WHERE id = t_id;
+
+        -- Commit transaction
+        COMMIT;
+
+        SELECT 1 AS Mesagge;
     END IF;
 
-    -- Deduct amount from source account
-    UPDATE BANK_ACCOUNT SET amount = amount - transfer_amount WHERE account_number = source_account_number;
-
-    -- Add amount to destination account
-    UPDATE BANK_ACCOUNT SET amount = amount + transfer_amount WHERE account_number = destination_account_number;
-
-
-    UPDATE TRANSACTION SET status = 'Completed' WHERE id = t_id;
-
-    -- Commit transaction
-    COMMIT;
-
-    SELECT 1 AS Mesagge;
 END //
 DELIMITER ;
 
@@ -374,12 +377,14 @@ BEGIN
     SELECT CASE
                WHEN EXISTS (SELECT id FROM TRANSACTION WHERE id = t_id) THEN 1
                ELSE 0
-               END AS exist_transaction INTO exist_transaction;
+               END AS exist_transaction
+    INTO exist_transaction;
 
     SELECT CASE
                WHEN EXISTS (SELECT transaction_id FROM SECONDARY_PASSWORDS WHERE transaction_id = t_id) THEN 1
                ELSE 0
-               END AS exist_secondary_password INTO exist_secondary_password;
+               END AS exist_secondary_password
+    INTO exist_secondary_password;
 
     SET _secondary_password = LPAD(FLOOR(RAND() * POW(10, 8)), 8, '0');
 
@@ -387,11 +392,11 @@ BEGIN
         IF exist_secondary_password = 1 THEN
             UPDATE SECONDARY_PASSWORDS
             SET secondary_password = _secondary_password,
-                expire_time        = TIMESTAMPADD(MINUTE, 2, NOW())
+                expire_time        = NOW() + INTERVAL 20 SECOND
             WHERE transaction_id = t_id;
         ELSE
             INSERT INTO SECONDARY_PASSWORDS (bank_account_number, transaction_id, secondary_password, expire_time)
-            VALUES (source_account_number_input, t_id, _secondary_password, TIMESTAMPADD(MINUTE, 2, NOW()));
+            VALUES (source_account_number_input, t_id, _secondary_password, NOW() + INTERVAL 20 SECOND);
 
         END IF;
 
@@ -441,7 +446,8 @@ BEGIN
     SELECT CASE
                WHEN EXISTS (SELECT id FROM `transaction` WHERE id = t_id) THEN 1
                ELSE 0
-               END INTO exist_transaction;
+               END
+    INTO exist_transaction;
 
     IF exist_transaction = 1 THEN
         -- Update transaction status
