@@ -223,9 +223,9 @@ class ORM:
 
         return result
 
-
     @staticmethod
-    def transfer_funds(source_account_number: str, destination_account_number: str, transfer_amount: str):
+    def transfer_funds(source_account_number: str, destination_account_number: str, transfer_amount: str,
+                       description: str, id: int):
         result: str = ""
         db = None
         cursor = None
@@ -240,12 +240,18 @@ class ORM:
 
                 try:
                     # اجرای پراسیجر TransferFunds با ورودی‌های مورد نیاز
-                    cursor.callproc("TransferFunds",
-                                    [source_account_number, destination_account_number, transfer_amount, None])
+                    cursor.callproc("Process_Transaction",
+                                    [source_account_number, destination_account_number, transfer_amount, description,
+                                     id])
+
+                    # print()
+
+                    for result in cursor.stored_results():
+                        print(result.fetchone())
+
+                    # result = success_message
                     db.commit()
-                    success_message = cursor.fetchone()[3]  # دریافت پیام موفقیت
-                    print(success_message)
-                    result = success_message
+
 
                 except mysql.connector.Error as error:
                     # Rollback تراکنش در صورت بروز خطا
@@ -271,6 +277,100 @@ class ORM:
 
         return result
 
+    @staticmethod
+    def check_destination_account(account_number: str):
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT GetAccountOwnerNameFunction({account_number})")
+                result = cursor.fetchone()
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
 
 
-# print(ORM.calculate_account_balance_with_date("12345678901234567891", '2027-01-05 00:00:00', '2025-05-05 00:00:00'))
+    @staticmethod
+    def check_secondary_password(transaction_id: int, secondary_password: str):
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT CheckSecondaryPassword({transaction_id}, {secondary_password})")
+                result = cursor.fetchone()
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
+
+
+    @staticmethod
+    def validate_transaction_amount(amount: float):
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT ValidateTransactionAmount({amount})")
+                result = cursor.fetchone()
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
+
+
+print(ORM.validate_transaction_amount(amount="-55"))
