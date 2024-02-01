@@ -442,9 +442,10 @@ class TransactionsTab(ttk.Frame):
 
 
 class TransferFundsTab(ttk.Frame):
-    def __init__(self, parent, id):
+    def __init__(self, parent, id, email):
         super().__init__(parent)
         self.id = id
+        self.email = email
         self.tranaction_id = None
         self.user_accounts = ORM.get_bank_accounts(id)
         self.create_layout()
@@ -540,6 +541,13 @@ class TransferFundsTab(ttk.Frame):
         elif int(result[0]) == 1:
             tk.messagebox.showinfo("نتیجه",
                                    "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا دو دقیقه بیشتر اعتبار ندارد.")
+
+            email_sender = EmailSender()
+            email_sender.connect_email()
+
+            email_sender.send_mail(receiver=self.email, subject="رمز دوم",
+                                   html_body=EmailNotification.secondary_password(result[1]))
+            email_sender.close_connection()
 
         else:
             tk.messagebox.showerror("خطا",
@@ -656,24 +664,31 @@ class TransferFundsTab(ttk.Frame):
         return False
 
     def confirm_transfer(self):
-        # بررسی رمز دوم
         second_password = self.password_entry.get()
-        if self.is_valid_second_password(second_password):
-            self.transfer_funds()
-        else:
-            tk.messagebox.showerror("خطا", "رمز دوم اشتباه است!")
+        result = ORM.check_secondary_password(self.tranaction_id, second_password)
+        if result == False:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در اتصال به پایگاه داده")
+            return
+            # بررسی رمز دوم
+        elif int(result[0]) == 1:
+            source_account_number: str = self.source_account_combobox.get()
+            transfer_amount: str = self.transfer_amount_entry.get()
+            destination_account_number: str = self.destination_account_entry.get()
 
-    def is_valid_second_password(self, second_password):
-        # کد بررسی رمز دوم
-        pass
+            output = ORM.transfer_funds(source_account_number=source_account_number,
+                                        destination_account_number=destination_account_number,
+                                        transfer_amount=transfer_amount, transaction_id=self.tranaction_id)
 
-    def get_destination_account_name(self, account_number):
-        # کد بازگشت نام شماره حساب مقصد از پایگاه داده
-        pass
-
-    def transfer_funds(self):
-        # کد انتقال وجه
-        pass
+            if output == False:
+                tk.messagebox.showerror("خطا",
+                                        "خطا در اتصال به پایگاه داده")
+                return
+            elif int(output[0]) == 1:
+                tk.messagebox.showinfo("موفقیت",
+                                        "تراکنش با موفقیت انجام شد")
+            else:
+                tk.messagebox.showerror("خطا", "موجودی حساب کافی نیست!")
 
 
 class MainWindow:
@@ -694,7 +709,7 @@ class MainWindow:
         self.transaction_tab = TransactionsTab(self.notebook, id)
         self.notebook.add(self.transaction_tab, text="تراکنش ها")
 
-        self.transfer_funds_tab = TransferFundsTab(self.notebook, id)
+        self.transfer_funds_tab = TransferFundsTab(self.notebook, id, email)
         self.notebook.add(self.transfer_funds_tab, text="انتقال وجه")
 
         self.settings_tab = SettingsTab(self.notebook, id, email, username, first_name, last_name)
