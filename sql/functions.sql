@@ -14,7 +14,7 @@ BEGIN
     FROM BANK_ACCOUNT ba
              INNER JOIN USERS u ON ba.user_id = u.id
     WHERE ba.account_number = account_number
-      AND account_status = 1;
+      AND account_status = 0;
 
     -- بررسی اینکه آیا اطلاعاتی یافت شده یا نه
     IF owner_name IS NULL THEN
@@ -34,13 +34,12 @@ CREATE FUNCTION CheckSecondaryPassword(_transaction_id INT, secondary_password V
 BEGIN
 
     DECLARE password VARCHAR(8) DEFAULT NULL;
-#     DECLARE ex_time TIMESTAMP;
+    DECLARE time TIMESTAMP DEFAULT NOW();
 
     SELECT secondary_password
     INTO password
     FROM secondary_passwords
-    WHERE transaction_id = _transaction_id
-      AND expire_time >= NOW();
+    WHERE transaction_id = _transaction_id AND time < expire_time;
 
     IF password = secondary_password THEN
         RETURN 1;
