@@ -278,6 +278,107 @@ class ORM:
         return result
 
     @staticmethod
+    def create_transaction(source_account_number: str, destination_account_number: str, transfer_amount: str,
+                           description: str):
+
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    # اجرای پراسیجر TransferFunds با ورودی‌های مورد نیاز
+                    cursor.callproc("Process_Transaction",
+                                    [source_account_number, destination_account_number, transfer_amount, description])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+
+                    db.commit()
+
+
+                except mysql.connector.Error as error:
+                    # Rollback تراکنش در صورت بروز خطا
+                    db.rollback()
+
+                    # بررسی خطای حجم کافی موجودی در حساب مبدا
+                    if error.errno == 45000:
+                        print("Insufficient balance in the source account")
+                    else:
+                        print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+    @staticmethod
+    def cancel_transaction(transaction_id: int):
+
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    # اجرای پراسیجر TransferFunds با ورودی‌های مورد نیاز
+                    cursor.callproc("Cancel_Process_Transaction",
+                                    [transaction_id])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+
+                    db.commit()
+
+
+                except mysql.connector.Error as error:
+                    # Rollback تراکنش در صورت بروز خطا
+                    db.rollback()
+
+                    # بررسی خطای حجم کافی موجودی در حساب مبدا
+                    if error.errno == 45000:
+                        print("Insufficient balance in the source account")
+                    else:
+                        print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+    @staticmethod
     def check_destination_account(account_number: str):
         result = None
         db = None
@@ -308,9 +409,8 @@ class ORM:
 
         return result[0]
 
-
     @staticmethod
-    def check_secondary_password(transaction_id: int, secondary_password: str):
+    def secondary_password(transaction_id: int, source_account_number: str):
         result = None
         db = None
         cursor = None
@@ -323,9 +423,14 @@ class ORM:
                 # ایجاد یک cursor برای اجرای کوئری‌ها
                 cursor = db.cursor()
 
-                # ساخت کوئری برای ایجاد تابع در پایگاه داده
-                cursor.execute(F"SELECT CheckSecondaryPassword({transaction_id}, {secondary_password})")
-                result = cursor.fetchone()
+                cursor.callproc("SecondaryPassword",
+                                [transaction_id, source_account_number])
+
+                for date in cursor.stored_results():
+                    result = date.fetchall()
+
+                db.commit()
+
 
         except mysql.connector.Error as error:
             print("خطا در اتصال به پایگاه داده MySQL:", error)
@@ -339,7 +444,6 @@ class ORM:
                 print("اتصال MySQL بسته شد.")
 
         return result[0]
-
 
     @staticmethod
     def validate_transaction_amount(amount: float):
@@ -373,4 +477,7 @@ class ORM:
         return result[0]
 
 
-print(ORM.validate_transaction_amount(amount="-55"))
+# print(
+#     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
+#                            transfer_amount=600, description="Fake2"))
+# print(ORM.secondary_password(transaction_id=16, source_account_number='12345678901234567891'))
