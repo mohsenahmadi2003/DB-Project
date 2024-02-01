@@ -24,93 +24,6 @@ END//
 DELIMITER ;
 
 
-
-DELIMITER //
--- PROCEDURE for Process_Transaction
-CREATE PROCEDURE `Process_Transaction`(
-    IN source_account_number_input VARCHAR(20),
-    IN destination_account_number_input VARCHAR(20),
-    IN amount_input NUMERIC(10, 2),
-    IN description_input VARCHAR(255),
-    IN t_id INT
-)
-BEGIN
-    DECLARE _transaction_id INT;
-    DECLARE _secondary_password VARCHAR(8);
-    DECLARE _transaction_date TIMESTAMP;
-    DECLARE rollback_required BOOLEAN DEFAULT FALSE;
-    DECLARE result INT;
-
-    -- Declare continue handler for any exception
-    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-        BEGIN
-            SET rollback_required = TRUE;
-        END;
-
-    -- Start the transaction
-
-    START TRANSACTION;
-    SELECT
-        CASE
-            WHEN EXISTS (SELECT id FROM TRANSACTION WHERE id = 1) THEN 1
-            ELSE 0
-        END AS result;
-
-    SET _secondary_password = LPAD(FLOOR(RAND() * POW(10, 8)), 8, '0');
-
-    IF result = 0 THEN
-
-        SET _transaction_date = NOW();
-        -- Insert transaction record
-        INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
-                                 description)
-        VALUES (source_account_number_input, destination_account_number_input, amount_input, _transaction_date, 'Pending',
-                description_input);
-
-        -- Get the transaction id
-        SELECT id
-        INTO _transaction_id
-        FROM TRANSACTION
-        WHERE source_account_number = source_account_number_input
-          AND destination_account_number = destination_account_number_input
-          AND amount = amount_input
-          AND transaction_date = _transaction_date
-          AND status = 'Pending'
-          AND description = description_input
-        LIMIT 1;
-
-
-        INSERT INTO SECONDARY_PASSWORDS (bank_account_number, transaction_id, secondary_password, expire_time)
-        VALUES (source_account_number_input, _transaction_id, _secondary_password, TIMESTAMPADD(MINUTE, 2, NOW()));
-
-    ELSE
-
-        UPDATE SECONDARY_PASSWORDS
-        SET secondary_password = _secondary_password, expire_time = TIMESTAMPADD(MINUTE, 2, NOW())
-        WHERE transaction_id = t_id AND bank_account_number = source_account_number_input;
-
-    END IF;
-        -- Check if rollback is required
-    IF rollback_required THEN
-        -- Transaction failed
-        ROLLBACK;
-        SELECT '0' AS Message;
-    ELSE
-        -- Commit the transaction
-        COMMIT;
-        -- Transaction processed successfully
-            IF result = 0 THEN
-                SELECT '1' AS Message, _transaction_id as transaction_id;
-            ELSE
-                SELECT '1' AS Message, t_id as transaction_id;
-             END IF;
-    END IF;
-
-END//
-
-DELIMITER ;
-
-
 DELIMITER //
 
 CREATE PROCEDURE LoginUser(IN p_username VARCHAR(32), IN p_password VARCHAR(64))
@@ -125,17 +38,22 @@ BEGIN
     SELECT COUNT(*), id, email, username, first_name, last_name
     INTO v_user_count, v_id, v_email, v_username, v_first_name, v_last_name
     FROM USERS
-    WHERE username = p_username AND password = p_password;
+    WHERE username = p_username
+      AND password = p_password;
 
     IF v_user_count > 0 THEN
-        SELECT 1 AS result, v_id as id, v_email AS email, v_username AS username, v_first_name AS first_name, v_last_name AS last_name;
+        SELECT 1            AS result,
+               v_id         as id,
+               v_email      AS email,
+               v_username   AS username,
+               v_first_name AS first_name,
+               v_last_name  AS last_name;
     ELSE
         SELECT 0 AS result;
     END IF;
 END //
 
 DELIMITER ;
-
 
 
 DELIMITER //
@@ -152,19 +70,18 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid user ID.';
     ELSE
         -- اگر کاربر وجود داشته باشد، اطلاعات حساب‌های کاربر را برگردانید
-        SELECT
-            id,
-            user_id,
-            account_number,
-            primary_password,
-            amount,
-            rate,
-            date_opened,
-            date_closed,
-            account_status,
-            description
+        SELECT id,
+               user_id,
+               account_number,
+               primary_password,
+               amount,
+               rate,
+               date_opened,
+               date_closed,
+               account_status,
+               description
         FROM BANK_ACCOUNT
-        WHERE user_id = user_id_input;
+        WHERE user_id = user_id_input AND account_status = 1;
     END IF;
 END //
 
@@ -173,7 +90,7 @@ DELIMITER ;
 
 DELIMITER //
 -- PROCEDURE BlockBankAccount
-CREATE PROCEDURE BlockBankAccount (
+CREATE PROCEDURE BlockBankAccount(
     IN account_number_input VARCHAR(20),
     IN description_input VARCHAR(255)
 )
@@ -188,7 +105,9 @@ BEGIN
 
     IF account_exists > 0 AND description_input IS NOT NULL THEN
         -- وضعیت حساب را به مسدود شده تغییر می‌دهیم
-        UPDATE BANK_ACCOUNT SET account_status = TRUE, description = description_input WHERE account_number = account_number_input;
+        UPDATE BANK_ACCOUNT
+        SET account_status = TRUE, description = description_input
+        WHERE account_number = account_number_input;
         SELECT 'موفقیت امیز' AS Message, 1 AS Result;
         -- تایید ترانزاکشن در صورت موفقیت
         COMMIT;
@@ -220,10 +139,10 @@ BEGIN
         SELECT u.first_name, u.last_name, u.username
         INTO first_name_output, last_name_output, username_output
         FROM BANK_ACCOUNT AS b
-        INNER JOIN USERS AS u ON b.user_id = u.id
+                 INNER JOIN USERS AS u ON b.user_id = u.id
         WHERE b.account_number = account_number_input;
 
-        SELECT 1 AS Message, first_name_output , last_name_output, username_output;
+        SELECT 1 AS Message, first_name_output, last_name_output, username_output;
     ELSE
         SELECT 0 AS Messsage;
     END IF;
@@ -245,11 +164,18 @@ BEGIN
 
     IF _user_id IS NOT NULL THEN
         -- بازیابی تراکنش‌های اخیر کاربر
-        SELECT 1 AS Message, id, source_account_number, destination_account_number, amount, transaction_date, status, description,
+        SELECT 1       AS Message,
+               id,
+               source_account_number,
+               destination_account_number,
+               amount,
+               transaction_date,
+               status,
+               description,
                CASE
                    WHEN source_account_number = account_number_input THEN 'Withdraw'
                    ELSE 'Deposit'
-               END AS transaction_type
+                   END AS transaction_type
         FROM TRANSACTION AS t
         WHERE t.source_account_number = account_number_input
         ORDER BY t.transaction_date DESC
@@ -275,34 +201,41 @@ BEGIN
 
         -- Calculate balance at the start date by summing up previous transactions
         SELECT COALESCE(SUM(CASE
-                            WHEN source_account_number = account_number THEN -amount
-                            ELSE amount
-                        END), 0)
+                                WHEN source_account_number = account_number THEN -amount
+                                ELSE amount
+            END), 0)
         INTO balance
         FROM `TRANSACTION`
         WHERE (source_account_number = account_number OR destination_account_number = account_number)
-        AND transaction_date < start_date;
+          AND transaction_date < start_date;
 
         -- Iterate through transactions between start_date and end_date
         SELECT id, source_account_number, destination_account_number, amount, transaction_date, status, description
         FROM `TRANSACTION`
         WHERE (source_account_number = account_number OR destination_account_number = account_number)
-        AND transaction_date BETWEEN start_date AND end_date
+          AND transaction_date BETWEEN start_date AND end_date
         ORDER BY transaction_date ASC;
 
         -- Calculate balance changes during the specified period and display transactions
-        SELECT 1 AS Status, source_account_number, destination_account_number, amount, transaction_date, status, description,
+        SELECT 1       AS Status,
+               source_account_number,
+               destination_account_number,
+               amount,
+               transaction_date,
+               status,
+               description,
                CASE
                    WHEN source_account_number = account_number THEN @balance := @balance - amount
                    ELSE @balance := @balance + amount
-               END AS new_balance,
+                   END AS new_balance,
                CASE
                    WHEN source_account_number = account_number THEN 'Withdraw'
                    ELSE 'Deposit'
-               END AS transaction_type
-        FROM (SELECT @balance := balance) AS balance_init, `TRANSACTION`
+                   END AS transaction_type
+        FROM (SELECT @balance := balance) AS balance_init,
+             `TRANSACTION`
         WHERE (source_account_number = account_number OR destination_account_number = account_number)
-        AND transaction_date BETWEEN start_date AND end_date
+          AND transaction_date BETWEEN start_date AND end_date
         ORDER BY transaction_date ASC;
     ELSE
         SELECT 0 AS Status, 'تاریخ ها اشتباه وارد شده اند' AS Message;
@@ -314,15 +247,107 @@ DELIMITER ;
 
 
 DELIMITER //
+-- PROCEDURE for Process_Transaction
+CREATE PROCEDURE `Process_Transaction`(
+    IN source_account_number_input VARCHAR(20),
+    IN destination_account_number_input VARCHAR(20),
+    IN amount_input NUMERIC(10, 2),
+    IN description_input VARCHAR(255),
+    IN t_id INT
+)
+BEGIN
+    DECLARE _transaction_id INT;
+    DECLARE _secondary_password VARCHAR(8);
+    DECLARE _transaction_date TIMESTAMP;
+    DECLARE rollback_required BOOLEAN DEFAULT FALSE;
+    DECLARE result INT;
+
+    -- Declare continue handler for any exception
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        BEGIN
+            SET rollback_required = TRUE;
+        END;
+
+    -- Start the transaction
+
+    START TRANSACTION;
+
+
+    SELECT CASE
+               WHEN EXISTS (SELECT id FROM TRANSACTION WHERE id = 1) THEN 1
+               ELSE 0
+               END AS result;
+
+    SET _secondary_password = LPAD(FLOOR(RAND() * POW(10, 8)), 8, '0');
+
+    IF result = 0 THEN
+
+        SET _transaction_date = NOW();
+        -- Insert transaction record
+        INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
+                                 description)
+        VALUES (source_account_number_input, destination_account_number_input, amount_input, _transaction_date,
+                'Pending',
+                description_input);
+
+        -- Get the transaction id
+        SELECT id
+        INTO _transaction_id
+        FROM TRANSACTION
+        WHERE source_account_number = source_account_number_input
+          AND destination_account_number = destination_account_number_input
+          AND amount = amount_input
+          AND transaction_date = _transaction_date
+          AND status = 'Pending'
+          AND description = description_input
+        LIMIT 1;
+
+
+        INSERT INTO SECONDARY_PASSWORDS (bank_account_number, transaction_id, secondary_password, expire_time)
+        VALUES (source_account_number_input, _transaction_id, _secondary_password, TIMESTAMPADD(MINUTE, 2, NOW()));
+
+    ELSE
+
+        UPDATE SECONDARY_PASSWORDS
+        SET secondary_password = _secondary_password,
+            expire_time        = TIMESTAMPADD(MINUTE, 2, NOW())
+        WHERE transaction_id = t_id
+          AND bank_account_number = source_account_number_input;
+
+    END IF;
+    -- Check if rollback is required
+    IF rollback_required THEN
+        -- Transaction failed
+        ROLLBACK;
+        SELECT '0' AS Message;
+    ELSE
+        -- Commit the transaction
+        COMMIT;
+        -- Transaction processed successfully
+        IF result = 0 THEN
+            SELECT '1' AS Message, _transaction_id as transaction_id;
+        ELSE
+            SELECT '1' AS Message, t_id as transaction_id;
+        END IF;
+    END IF;
+
+END//
+
+DELIMITER ;
+
+
+DELIMITER //
 
 CREATE PROCEDURE TransferFunds(
     IN source_account_number VARCHAR(20),
     IN destination_account_number VARCHAR(20),
-    IN transfer_amount NUMERIC(10, 2)
+    IN transfer_amount NUMERIC(10, 2),
+    IN t_id INT
 )
 BEGIN
     DECLARE source_balance NUMERIC(20, 2);
     DECLARE destination_balance NUMERIC(20, 2);
+
 
     -- Start transaction
     START TRANSACTION;
@@ -340,9 +365,8 @@ BEGIN
     -- Add amount to destination account
     UPDATE BANK_ACCOUNT SET amount = amount + transfer_amount WHERE account_number = destination_account_number;
 
-    -- Insert transaction record
-    INSERT INTO `TRANSACTION` (source_account_number, destination_account_number, amount, transaction_date, status, description)
-    VALUES (source_account_number, destination_account_number, transfer_amount, NOW(), 'Completed', 'Transfer from ' || source_account_number || ' to ' || destination_account_number);
+
+    UPDATE TRANSACTION SET status = 'Completed' WHERE id = t_id;
 
     -- Commit transaction
     COMMIT;
