@@ -145,3 +145,37 @@ BEGIN
 END//
 
 DELIMITER ;
+
+
+DELIMITER //
+
+CREATE FUNCTION GetMinBalanceByAccountNumber(
+    account_number_input VARCHAR(20))
+    RETURNS NUMERIC(20, 2)
+    READS SQL DATA
+BEGIN
+    DECLARE min_balance_source NUMERIC(20, 2);
+    DECLARE min_balance_destination NUMERIC(20, 2);
+    DECLARE start_date TIMESTAMP;
+    DECLARE end_date TIMESTAMP;
+
+    SET start_date = NOW() - INTERVAL 2 MONTH;
+    SET end_date = NOW();
+    -- Find minimum balance based on source_account_number
+    SELECT MIN(source_account_balance)
+    INTO min_balance_source
+    FROM transaction
+    WHERE source_account_number = account_number_input AND transaction_date BETWEEN start_date AND end_date;
+
+    -- Find minimum balance based on destination_account_number
+    SELECT MIN(destination_account_balance)
+    INTO min_balance_destination
+    FROM transaction
+    WHERE destination_account_number = account_number_input AND transaction_date BETWEEN start_date AND end_date;
+
+    -- Return the minimum balance
+    RETURN LEAST(COALESCE(min_balance_source, min_balance_destination), COALESCE(min_balance_destination, min_balance_source));
+END //
+
+DELIMITER ;
+
