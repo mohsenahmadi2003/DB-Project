@@ -2,15 +2,29 @@ from module import *
 
 
 class LoansTab(ttk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, id):
         super().__init__(parent)
+        self.id = id
         self.create_loans_table()
 
     def create_loans_table(self):
-        loans_label = ttk.Label(self, text="لیست وام‌ها")
+        loans_label = ttk.Label(self, text="وام ‌های من")
         loans_label.pack()
 
-        self.loans_tree = ttk.Treeview(self, columns=('ردیف', "شماره حساب", "مبلغ وام", "تاریخ شروع"),
+        filter_frame = ttk.Frame(self)
+        filter_frame.pack(fill="y", expand=False)
+
+        update_date_button = ttk.Button(filter_frame, text="آپدیت اطلاعات", command=self.update_date)
+        update_date_button.grid(row=0, column=120, padx=5, pady=5)
+
+        self.user_accounts_combo = ttk.Combobox(filter_frame, state="readonly", width=25)
+        self.user_accounts_combo.grid(row=0, column=1, padx=5, pady=5)
+        self.user_accounts_combo.bind("<<ComboboxSelected>>", self.on_user_account_selected)
+
+        loan_list_frame = ttk.Frame(self)
+        loan_list_frame.pack(fill="y", expand=True)
+
+        self.loans_tree = ttk.Treeview(loan_list_frame, columns=('ردیف', "شماره حساب", "مبلغ وام","تاریخ شروع" ,'تاریخ پایان', "وضعیت وام"),
                                        selectmode="browse")
         self.loans_tree.pack(fill=tk.BOTH, expand=True)
 
@@ -26,21 +40,47 @@ class LoansTab(ttk.Frame):
         self.loans_tree.heading("#3", text="تاریخ شروع", anchor="center")
         self.loans_tree.column("#3", anchor='center')
 
-        for i in range(15):
-            self.loans_tree.insert("", tk.END, text=str(i), values=("1234567890", "$5000", "2024-01-01"),
-                                   tags=('center',))
+        self.loans_tree.heading("#4", text="تاریخ پایان", anchor="center")
+        self.loans_tree.column("#4", anchor='center')
+
+        self.loans_tree.heading("#5", text="وضعیت وام", anchor="center")
+        self.loans_tree.column("#5", anchor='center')
 
         self.loans_tree.tag_configure('center', anchor='center')
 
-        self.loans_tree.bind("<<TreeviewSelect>>", self.on_loan_selected)
-        self.loans_tree.bind("<FocusOut>", lambda event: self.loans_tree.selection_remove(self.loans_tree.selection()))
+        # ایجاد یک اسکرول‌بار افقی
+        x_scrollbar = ttk.Scrollbar(loan_list_frame, orient="horizontal", command=self.loans_tree.xview)
+        x_scrollbar.pack(side="bottom", fill="x")
 
-    def on_loan_selected(self, event):
-        selected_items = self.loans_tree.selection()
-        if selected_items:
-            selected_item = selected_items[0]
-            loan_info = self.loans_tree.item(selected_item, "values")
-            print("Selected Loan:", loan_info)
+        # متصل کردن اسکرول‌بار به Treeview
+        self.loans_tree.configure(xscrollcommand=x_scrollbar.set)
+
+        self.update_date()
+
+    def update_date(self):
+        self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
+
+        user_accounts = ORM.get_bank_accounts(self.id)
+        print(user_accounts)
+        self.user_accounts_combo['values'] = [f"{account[2]}" for account in
+                                              user_accounts if account[7] == 0]
+
+        for item in self.loans_tree.get_children():
+            self.loans_tree.delete(item)
+
+    def on_user_account_selected(self, event):
+        print("11")
+        for item in self.loans_tree.get_children():
+            self.loans_tree.delete(item)
+
+        selected_value = event.widget.get()
+        loans = ORM.get_account_loans(selected_value)
+        print(loans)
+        for index, item in enumerate(loans):
+            self.loans_tree.insert("", tk.END, text=str(index+1),
+                                   values=(f"{item[2]}", f"{item[3]}", f"{item[4]}", f"{item[5]}",
+                                           f"{'فعال' if int(item[6]) == 1 else 'اتمام'}"),
+                                   tags=('center',))
 
 
 class AccountsTab(ttk.Frame):
@@ -95,14 +135,11 @@ class AccountsTab(ttk.Frame):
         self.selected_amount_label = ttk.Label(selected_account_frame, text="موجودی حساب:")
         self.selected_amount_label.grid(row=2, column=1)
 
-        self.selected_rate_label = ttk.Label(selected_account_frame, text="امتیاز حساب:")
-        self.selected_rate_label.grid(row=3, column=1)
-
         self.selected_date_opened_label = ttk.Label(selected_account_frame, text="تاریخ افتتاح حساب:")
-        self.selected_date_opened_label.grid(row=4, column=1)
+        self.selected_date_opened_label.grid(row=3, column=1)
 
         self.selected_date_closed_label = ttk.Label(selected_account_frame, text="تاریخ بسته شدن حساب:")
-        self.selected_date_closed_label.grid(row=5, column=1)
+        self.selected_date_closed_label.grid(row=4, column=1)
 
         # ایجاد فریم برای نمایش لیست حساب‌های بانکی
         selected_account_status_description_frame = ttk.Frame(self)
@@ -140,7 +177,7 @@ class AccountsTab(ttk.Frame):
 
         for index, item in enumerate(self.accounts):
             self.accounts_tree.insert("", tk.END, text=str(index),
-                                      values=(f"{item[2]}", f"{item[4]}", f"{'باز' if item[8] == 0 else 'مسدود'}"),
+                                      values=(f"{item[2]}", f"{item[4]}", f"{'باز' if item[7] == 0 else 'مسدود'}"),
                                       tags=('center',))
 
     def submit_account_changes(self):
@@ -165,13 +202,12 @@ class AccountsTab(ttk.Frame):
             self.selected_account_number_label.config(text=f"شماره حساب: {data[2]}")
             self.selected_primary_password_label.config(text=f"رمز اول حساب: {data[3]}", anchor='center')
             self.selected_amount_label.config(text=f"موجودی حساب: {data[4]}")
-            self.selected_rate_label.config(text=f"امتیاز حساب: {data[5]}")
-            self.selected_date_opened_label.config(text=f"تاریخ افتتاح حساب: {data[6]}")
-            self.selected_date_closed_label.config(text=f"تاریخ بسته شدن حساب: {data[7]}")
+            self.selected_date_opened_label.config(text=f"تاریخ افتتاح حساب: {data[5]}")
+            self.selected_date_closed_label.config(text=f"تاریخ بسته شدن حساب: {data[6]}")
             self.selected_description_entry.delete(0, tk.END)  # پاک کردن محتویات اولیه توضیحات
-            self.selected_description_entry.insert(0, data[9])  # وارد کردن توضیحات از دیتابیس
+            self.selected_description_entry.insert(0, data[8])  # وارد کردن توضیحات از دیتابیس
             print(data)
-            if bool(data[8]) == True:
+            if bool(data[7]) == True:
                 self.selected_description_entry.config(state='disabled')
                 self.selected_account_status_checkbutton.config(state='disabled')
                 self.submit_button.config(state='disabled')
@@ -405,7 +441,7 @@ class TransactionsTab(ttk.Frame):
         user_accounts = ORM.get_bank_accounts(self.id)
 
         self.user_accounts_combo['values'] = [f"{account[2]}" for account in
-                                              user_accounts if account[8] == 0]
+                                              user_accounts if account[7] == 0]
 
     def on_filter_type_selected(self, event):
         selected_filter_type = self.filter_type_var.get()
@@ -586,7 +622,7 @@ class TransferFundsTab(ttk.Frame):
         user_accounts = ORM.get_bank_accounts(self.id)
 
         self.source_account_combobox['values'] = [f"{account[2]}" for account in
-                                                  user_accounts if account[8] == 0]
+                                                  user_accounts if account[7] == 0]
 
     def toggle_password_visibility(self):
         if self.password_entry.cget("show") == "":
@@ -820,8 +856,8 @@ class MainWindow:
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True)
 
-        self.loans_tab = LoansTab(self.notebook)
-        self.notebook.add(self.loans_tab, text="وام‌ها")
+        self.loans_tab = LoansTab(self.notebook, id)
+        self.notebook.add(self.loans_tab, text="وام ‌های من")
 
         self.accounts_tab = AccountsTab(self.notebook, id)
         self.notebook.add(self.accounts_tab, text="حساب‌های بانکی")
