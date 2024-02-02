@@ -280,18 +280,19 @@ BEGIN
             'Pending',
             description_input);
 
--- Get the transaction id
+    -- Get the transaction id
+    SET @_transaction_id = LAST_INSERT_ID();
 
-    SELECT id
-    INTO _transaction_id
-    FROM TRANSACTION
-    WHERE source_account_number = source_account_number_input
-      AND destination_account_number = destination_account_number_input
-      AND amount = amount_input
-      AND transaction_date = _transaction_date
-      AND status = 'Pending'
-      AND description = description_input
-    LIMIT 1;
+    /*    SELECT id
+        INTO _transaction_id
+        FROM TRANSACTION
+        WHERE source_account_number = source_account_number_input
+          AND destination_account_number = destination_account_number_input
+          AND amount = amount_input
+          AND transaction_date = _transaction_date
+          AND status = 'Pending'
+          AND description = description_input
+        LIMIT 1;*/
 
 -- Check if rollback is required
     IF rollback_required THEN
@@ -472,5 +473,173 @@ BEGIN
         SELECT '1' AS Message;
     END IF;
 END//
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE InsertLoanAndPayments(
+    IN input_user_id INT,
+    IN input_loan_amount NUMERIC(20, 2)
+)
+BEGIN
+    DECLARE bank_interest_rate DECIMAL(5, 2);
+    DECLARE total_loan_amount NUMERIC(20, 2);
+    DECLARE monthly_payment_amount NUMERIC(10, 2);
+    DECLARE start_date TIMESTAMP;
+    DECLARE end_date TIMESTAMP;
+    DECLARE i INT DEFAULT 1;
+
+    -- Start the transaction
+    START TRANSACTION;
+
+    -- Calculate bank interest rate (20%)
+    SET bank_interest_rate = 0.2;
+
+    -- Calculate total loan amount
+    SET total_loan_amount = input_loan_amount + (input_loan_amount * bank_interest_rate);
+
+    -- Calculate monthly payment amount
+    SET monthly_payment_amount = total_loan_amount / 12;
+
+    -- Get start and end date for loan
+    SET start_date = NOW();
+    SET end_date = DATE_ADD(start_date, INTERVAL 1 YEAR);
+
+    -- Insert loan record
+    INSERT INTO LOAN (user_id, loan_amount, start_date, end_date, loan_status)
+    VALUES (input_user_id, total_loan_amount, start_date, end_date, 1);
+
+    -- Get the id of the inserted loan
+    SET @loan_id = LAST_INSERT_ID();
+
+    -- Insert loan payments for 12 months
+    WHILE i <= 12
+        DO
+            INSERT INTO LOAN_PAYMENT (loan_id, paid_amount, paid_date, status)
+            VALUES (@loan_id, monthly_payment_amount, DATE_ADD(start_date, INTERVAL i MONTH), 0);
+            SET i = i + 1;
+        END WHILE;
+
+    -- Commit the transaction
+    COMMIT;
+
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetAccountLoans(
+    IN account_number_input VARCHAR(20)
+)
+BEGIN
+    SELECT *
+    FROM LOAN
+    WHERE account_number = account_number_input;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetLoanInstallments(
+    IN loan_id_input INT
+)
+BEGIN
+    SELECT *
+    FROM LOAN_PAYMENT
+    WHERE loan_id = loan_id_input;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetLoanPaymentStatus(
+    IN loan_id_input INT
+)
+BEGIN
+    DECLARE total_loan_amount NUMERIC(20, 2);
+    DECLARE total_paid_amount NUMERIC(20, 2);
+    DECLARE remaining_amount NUMERIC(20, 2);
+
+    -- Get total loan amount
+    SELECT loan_amount
+    INTO total_loan_amount
+    FROM LOAN
+    WHERE id = loan_id_input;
+
+    -- Get total paid amount for the loan
+    SELECT SUM(paid_amount)
+    INTO total_paid_amount
+    FROM LOAN_PAYMENT
+    WHERE loan_id = loan_id_input
+      AND status = 1;
+
+    -- Calculate remaining amount
+    SET remaining_amount = total_loan_amount - total_paid_amount;
+
+    -- Return total paid amount and remaining amount
+    SELECT total_paid_amount AS paid_amount, remaining_amount AS remaining_amount;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE PayLoanInstallment(
+    IN account_number_input VARCHAR(20),
+    IN amount_to_pay NUMERIC(10, 2),
+    IN loan_id_input INT,
+    IN installment_id_input INT
+)
+BEGIN
+    -- Declare rollback_required variable
+    DECLARE rollback_required BOOLEAN DEFAULT FALSE;
+
+
+    -- Declare continue handler for any exception
+    DECLARE CONTINUE
+        HANDLER FOR SQLEXCEPTION
+        BEGIN
+            SET rollback_required = TRUE;
+        END;
+
+    -- Start transaction
+    START TRANSACTION;
+
+    -- Update balance in BANK_ACCOUNT table
+    UPDATE BANK_ACCOUNT
+    SET amount = amount - amount_to_pay
+    WHERE account_number = account_number_input;
+
+    -- Insert transaction record
+    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status, description)
+    VALUES (account_number_input, 'Bank', amount_to_pay, NOW(), 'Completed',
+            CONCAT('Loan ', loan_id_input, 'Payment for loan installment ID: ', installment_id_input));
+
+    -- Update loan payment status
+    UPDATE LOAN_PAYMENT
+    SET status = 1
+    WHERE id = installment_id_input;
+
+    -- Check if rollback is required
+    IF rollback_required THEN
+        -- Transaction failed
+        ROLLBACK;
+        SELECT '0' AS Message;
+    ELSE
+        -- Commit the transaction
+        COMMIT;
+        -- Transaction processed successfully
+        SELECT '1' AS Message;
+    END IF;
+END //
 
 DELIMITER ;
