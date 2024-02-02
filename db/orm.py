@@ -710,6 +710,54 @@ class ORM:
                 print("اتصال MySQL بسته شد.")
 
         return result
+    @staticmethod
+    def get_loan_payment_status(loan_id_input: int):
+        """
+        بدست آوردن مبلغ پرداخت شده و باقی ماند وام
+        ورودی هم ایدی وام را میگیرد
+        :param loan_id_input:
+        :return:
+        یک رکورد با دو ستون اولی مبلغ پرداخت شده و دومی مبلغ باقی مانده
+
+        (0, total_loan_amount)
+        یعنی هیچ قسطی پرداخت نشده
+        """
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    cursor.callproc("GetLoanPaymentStatus",
+                                    [loan_id_input])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+
+                except mysql.connector.Error as error:
+
+                    print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
 
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
@@ -717,3 +765,4 @@ class ORM:
 # print(ORM.insert_loan_and_payments(1, '77773333666633338888', "2500.00"))
 # print(ORM.get_account_loans('77773333666633338888'))
 # print(ORM.get_loan_installments('3'))
+# print(ORM.get_loan_payment_status('3'))
