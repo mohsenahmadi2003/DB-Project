@@ -639,16 +639,11 @@ class ORM:
                 # ایجاد یک cursor برای اجرای کوئری‌ها
                 cursor = db.cursor()
 
-                try:
-                    cursor.callproc("GetAccountLoans",
-                                    [input_account_number])
+                cursor.callproc("GetAccountLoans",
+                                [input_account_number])
 
-                    for date in cursor.stored_results():
-                        result = date.fetchall()
-
-                except mysql.connector.Error as error:
-
-                    print("Error:", error)
+                for date in cursor.stored_results():
+                    result = date.fetchall()
 
 
         except mysql.connector.Error as error:
