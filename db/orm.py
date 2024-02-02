@@ -596,7 +596,6 @@ class ORM:
 
                     db.commit()
 
-
                 except mysql.connector.Error as error:
                     # Rollback تراکنش در صورت بروز خطا
                     db.rollback()
@@ -615,7 +614,7 @@ class ORM:
                 db.close()
                 print("اتصال MySQL بسته شد.")
 
-        return result[0]  # '1' or '0'
+        return str(result[0])  # '1' or '0'
 
     @staticmethod
     def get_account_loans(input_account_number: str):
@@ -881,7 +880,7 @@ class ORM:
                 db.close()
                 print("اتصال MySQL بسته شد.")
 
-        return result[0]
+        return str(result[0])
 
     @staticmethod
     def generate_loan_proposals(input_loan_amount: str):
