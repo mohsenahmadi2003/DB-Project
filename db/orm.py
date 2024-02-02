@@ -850,6 +850,44 @@ class ORM:
 
         return result[0]
 
+    @staticmethod
+    def get_active_loan_id(account_number_input: str):
+        """
+        برای بررسی وجود وام فعال برای یک حساب
+        ورودی : شماره حساب
+        :param account_number_input:
+        :return:
+        خروجی: ایدی وام یا صفر
+        """
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT GetActiveLoanId({account_number_input})")
+                result = cursor.fetchone()
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
@@ -858,4 +896,4 @@ class ORM:
 # print(ORM.get_loan_installments('3'))
 # print(ORM.get_loan_payment_status('3'))
 # print(ORM.pay_loan_installment('77773333666633338888','250.00', '3', '25'))
-print(ORM.get_smallest_unpaid_installment('3'))
+# print(ORM.get_active_loan_id('77773333666633338888'))
