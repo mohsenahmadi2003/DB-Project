@@ -75,7 +75,6 @@ BEGIN
                account_number,
                primary_password,
                amount,
-               rate,
                date_opened,
                date_closed,
                account_status,
@@ -521,7 +520,7 @@ BEGIN
 
     -- Insert loan record
     INSERT INTO LOAN (user_id, account_number, loan_amount, start_date, end_date, loan_status)
-    VALUES (input_user_id, input_account_number, total_loan_amount, start_date, end_date, 1);
+    VALUES (input_user_id, input_account_number, input_loan_amount, start_date, end_date, 1);
 
     -- Get the id of the inserted loan
     SET @loan_id = LAST_INSERT_ID();
