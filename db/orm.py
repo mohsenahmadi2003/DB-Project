@@ -560,7 +560,64 @@ class ORM:
 
         return result[0]
 
+    @staticmethod
+    def insert_loan_and_payments(input_user_id: int, input_account_number: str, input_loan_amount: str):
+        """
+        completed
+        محاسبه سود وام
+        ایجاد وام
+        ایجاد قسط های وام
+        بصورت ترنس اکشن
+        
+        :param account_number: 
+        :return: 
+        موفقیت = 1
+        نا موفق = 0
+        """""
+
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    cursor.callproc("InsertLoanAndPayments",
+                                    [input_user_id, input_account_number, input_loan_amount])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+
+                    db.commit()
+
+
+                except mysql.connector.Error as error:
+                    # Rollback تراکنش در صورت بروز خطا
+                    db.rollback()
+
+                    print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]  # '1' or '0'
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
-# print(ORM.get_amount_account(account_number='12345678901234567891'))
+# print(ORM.insert_loan_and_payments(1, '77773333666633338888', "2500.00"))
