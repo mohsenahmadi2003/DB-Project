@@ -120,3 +120,28 @@ BEGIN
 END //
 
 DELIMITER ;
+
+
+DELIMITER //
+
+CREATE FUNCTION GetSmallestUnpaidInstallment(
+    loan_id_input INT
+)
+    RETURNS INT
+    READS SQL DATA
+
+BEGIN
+    DECLARE smallest_id INT;
+
+    -- Find the smallest unpaid installment amount for the given loan_id
+    SELECT MIN(id)
+    INTO smallest_id
+    FROM LOAN_PAYMENT
+    WHERE loan_id = loan_id_input
+      AND status = 0;
+
+    -- Return the smallest unpaid installment amount
+    RETURN smallest_id;
+END//
+
+DELIMITER ;
