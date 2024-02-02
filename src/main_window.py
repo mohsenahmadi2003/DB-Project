@@ -24,7 +24,8 @@ class LoansTab(ttk.Frame):
         loan_list_frame = ttk.Frame(self)
         loan_list_frame.pack(fill="y", expand=True)
 
-        self.loans_tree = ttk.Treeview(loan_list_frame, columns=('ردیف', "شماره حساب", "مبلغ وام","تاریخ شروع" ,'تاریخ پایان', "وضعیت وام"),
+        self.loans_tree = ttk.Treeview(loan_list_frame, columns=(
+            'ردیف', "شماره حساب", "مبلغ وام", "تاریخ شروع", 'تاریخ پایان', "وضعیت وام"),
                                        selectmode="browse")
         self.loans_tree.pack(fill=tk.BOTH, expand=True)
 
@@ -77,9 +78,130 @@ class LoansTab(ttk.Frame):
         loans = ORM.get_account_loans(selected_value)
         print(loans)
         for index, item in enumerate(loans):
-            self.loans_tree.insert("", tk.END, text=str(index+1),
+            self.loans_tree.insert("", tk.END, text=str(index + 1),
                                    values=(f"{item[2]}", f"{item[3]}", f"{item[4]}", f"{item[5]}",
                                            f"{'فعال' if int(item[6]) == 1 else 'اتمام'}"),
+                                   tags=('center',))
+
+
+class LoansOfferTab(ttk.Frame):
+    def __init__(self, parent, id):
+        super().__init__(parent)
+        self.id = id
+        self.create_loans_table()
+
+    def create_loans_table(self):
+        loans_label = ttk.Label(self, text="وام ‌های پیشنهادی من")
+        loans_label.pack()
+
+        filter_frame = ttk.Frame(self)
+        filter_frame.pack(fill="y", expand=False)
+
+        update_date_button = ttk.Button(filter_frame, text="آپدیت اطلاعات", command=self.update_date)
+        update_date_button.grid(row=0, column=120, padx=5, pady=5)
+
+        self.user_accounts_combo = ttk.Combobox(filter_frame, state="readonly", width=25)
+        self.user_accounts_combo.grid(row=0, column=1, padx=5, pady=5)
+        self.user_accounts_combo.bind("<<ComboboxSelected>>", self.on_user_account_selected)
+
+        loan_list_frame = ttk.Frame(self)
+        loan_list_frame.pack(fill="y", expand=True)
+
+        self.loans_tree = ttk.Treeview(loan_list_frame,
+                                       columns=('ردیف', "مبلغ دریافتی", "مبلغ پرداختی", 'پرداختی ماهانه', "تاریخ شروع",
+                                                'تاریخ پایان', "نوع وام"),
+                                       selectmode="browse")
+        self.loans_tree.pack(fill=tk.BOTH, expand=True)
+
+        self.loans_tree.heading("#0", text="شماره ردیف", anchor="center")
+        self.loans_tree.column("#0", anchor='center')
+
+        self.loans_tree.heading("#1", text="مبلغ دریافتی", anchor="center")
+        self.loans_tree.column("#1", anchor='center')
+
+        self.loans_tree.heading("#2", text="مبلغ پرداختی", anchor="center")
+        self.loans_tree.column("#2", anchor='center')
+
+        self.loans_tree.heading("#3", text='پرداختی ماهانه', anchor="center")
+        self.loans_tree.column("#3", anchor='center')
+
+        self.loans_tree.heading("#4", text="تاریخ شروع", anchor="center")
+        self.loans_tree.column("#4", anchor='center')
+
+        self.loans_tree.heading("#5", text="تاریخ پایان", anchor="center")
+        self.loans_tree.column("#5", anchor='center')
+
+        self.loans_tree.heading("#6", text="نوع وام", anchor="center")
+        self.loans_tree.column("#6", anchor='center')
+
+        self.loans_tree.tag_configure('center', anchor='center')
+
+        # ایجاد یک اسکرول‌بار افقی
+        x_scrollbar = ttk.Scrollbar(loan_list_frame, orient="horizontal", command=self.loans_tree.xview)
+        x_scrollbar.pack(side="bottom", fill="x")
+
+        # متصل کردن اسکرول‌بار به Treeview
+        self.loans_tree.configure(xscrollcommand=x_scrollbar.set)
+
+        request_frame = ttk.Frame(self)
+        request_frame.pack(fill="y", expand=False)
+
+        update_date_button = ttk.Button(request_frame, text="درخواست وام", command=self.request_loan)
+        update_date_button.grid(row=0, column=120, padx=5, pady=5)
+
+        self.update_date()
+
+    def request_loan(self):
+        account_number = self.user_accounts_combo.get()  # دسترسی به مقدار انتخاب شده از Combobox
+        selected_row = self.loans_tree.focus()  # دریافت ردیف انتخاب شده
+        row_data = self.loans_tree.item(selected_row, 'values')  # دریافت داده‌های مربوط به ردیف انتخاب شده
+        print("Selected Row Data:", row_data)
+
+        check_loan_active = ORM.get_active_loan_id(account_number)
+        if check_loan_active == False:
+            messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
+            return
+        elif int(check_loan_active) != 0:
+            messagebox.showinfo("نتیحه", "شما وام فعال برای این حساب دارید")
+            return
+        else:
+            min_balance_two_month_ago = ORM.get_min_balance_by_account_number(account_number)
+            output = ORM.insert_loan_and_payments(self.id, account_number, min_balance_two_month_ago)
+            if output == False:
+                messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
+            elif int(output) == 1:
+                messagebox.showinfo("نتیحه", "وام فعال گردید")
+
+    def update_date(self):
+        self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
+
+        user_accounts = ORM.get_bank_accounts(self.id)
+        print(user_accounts)
+        self.user_accounts_combo['values'] = [f"{account[2]}" for account in
+                                              user_accounts if account[7] == 0]
+
+        for item in self.loans_tree.get_children():
+            self.loans_tree.delete(item)
+
+    def on_user_account_selected(self, event):
+
+        for item in self.loans_tree.get_children():
+            self.loans_tree.delete(item)
+
+        selected_value = event.widget.get()
+
+        min_balance_two_month_ago = ORM.get_min_balance_by_account_number(selected_value)
+        print(min_balance_two_month_ago)
+        result: list = ORM.generate_loan_proposals(min_balance_two_month_ago)
+        loan_type = None
+        for index, item in enumerate(result):
+            if index == 0:
+                loan_type = "اصلی"
+            else:
+                loan_type = "پیشنهادی"
+            self.loans_tree.insert("", tk.END, text=str(index + 1),
+                                   values=(f"{item[0]}", f"{item[1]}", f"{item[2]}", f"{item[3]}",
+                                           f"{item[4]}", loan_type),
                                    tags=('center',))
 
 
@@ -858,6 +980,9 @@ class MainWindow:
 
         self.loans_tab = LoansTab(self.notebook, id)
         self.notebook.add(self.loans_tab, text="وام ‌های من")
+
+        self.loans_offer_tab = LoansOfferTab(self.notebook, id)
+        self.notebook.add(self.loans_offer_tab, text="وام ‌های پیشنهادی من")
 
         self.accounts_tab = AccountsTab(self.notebook, id)
         self.notebook.add(self.accounts_tab, text="حساب‌های بانکی")
