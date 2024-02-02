@@ -88,6 +88,7 @@ class LoansOfferTab(ttk.Frame):
     def __init__(self, parent, id):
         super().__init__(parent)
         self.id = id
+        self.row_data = None
         self.create_loans_table()
 
     def create_loans_table(self):
@@ -112,6 +113,8 @@ class LoansOfferTab(ttk.Frame):
                                                 'تاریخ پایان', "نوع وام"),
                                        selectmode="browse")
         self.loans_tree.pack(fill=tk.BOTH, expand=True)
+
+        self.loans_tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
         self.loans_tree.heading("#0", text="شماره ردیف", anchor="center")
         self.loans_tree.column("#0", anchor='center')
@@ -151,11 +154,19 @@ class LoansOfferTab(ttk.Frame):
 
         self.update_date()
 
+    def on_tree_select(self, event):
+        selected_row = self.loans_tree.focus()  # دریافت ردیف انتخاب شده
+        if selected_row:  # اگر ردیفی انتخاب شده باشد
+            row_data = self.loans_tree.item(selected_row, 'values')  # دریافت داده‌های مربوط به ردیف انتخاب شده
+            print("Selected Row Data:", row_data)
+            self.row_data = row_data
+
     def request_loan(self):
         account_number = self.user_accounts_combo.get()  # دسترسی به مقدار انتخاب شده از Combobox
-        selected_row = self.loans_tree.focus()  # دریافت ردیف انتخاب شده
-        row_data = self.loans_tree.item(selected_row, 'values')  # دریافت داده‌های مربوط به ردیف انتخاب شده
-        print("Selected Row Data:", row_data)
+
+        if self.row_data == None:
+            messagebox.showerror("خطا", "هیچ ردیفی انتخاب نشده است")
+            return
 
         check_loan_active = ORM.get_active_loan_id(account_number)
         if check_loan_active == False:
@@ -165,12 +176,13 @@ class LoansOfferTab(ttk.Frame):
             messagebox.showinfo("نتیحه", "شما وام فعال برای این حساب دارید")
             return
         else:
-            min_balance_two_month_ago = ORM.get_min_balance_by_account_number(account_number)
-            output = ORM.insert_loan_and_payments(self.id, account_number, min_balance_two_month_ago)
+            output = ORM.insert_loan_and_payments(self.id, account_number, self.row_data[0])
             if output == False:
                 messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
-            elif int(output) == 1:
-                messagebox.showinfo("نتیحه", "وام فعال گردید")
+            if int(output) == 1:
+                messagebox.showinfo("نتیحه", "وام واریز گردید")
+            else:
+                messagebox.showerror("خطا", 'خطا در واریز وام ')
 
     def update_date(self):
         self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
