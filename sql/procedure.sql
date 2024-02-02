@@ -481,6 +481,7 @@ DELIMITER //
 
 CREATE PROCEDURE InsertLoanAndPayments(
     IN input_user_id INT,
+    IN input_account_number VARCHAR(20),
     IN input_loan_amount NUMERIC(20, 2)
 )
 BEGIN
@@ -490,6 +491,17 @@ BEGIN
     DECLARE start_date TIMESTAMP;
     DECLARE end_date TIMESTAMP;
     DECLARE i INT DEFAULT 1;
+
+    -- Declare rollback_required variable
+    DECLARE rollback_required BOOLEAN DEFAULT FALSE;
+
+
+    -- Declare continue handler for any exception
+    DECLARE CONTINUE
+        HANDLER FOR SQLEXCEPTION
+        BEGIN
+            SET rollback_required = TRUE;
+        END;
 
     -- Start the transaction
     START TRANSACTION;
@@ -508,8 +520,8 @@ BEGIN
     SET end_date = DATE_ADD(start_date, INTERVAL 1 YEAR);
 
     -- Insert loan record
-    INSERT INTO LOAN (user_id, loan_amount, start_date, end_date, loan_status)
-    VALUES (input_user_id, total_loan_amount, start_date, end_date, 1);
+    INSERT INTO LOAN (user_id, account_number, loan_amount, start_date, end_date, loan_status)
+    VALUES (input_user_id, input_account_number, total_loan_amount, start_date, end_date, 1);
 
     -- Get the id of the inserted loan
     SET @loan_id = LAST_INSERT_ID();
@@ -522,8 +534,17 @@ BEGIN
             SET i = i + 1;
         END WHILE;
 
-    -- Commit the transaction
-    COMMIT;
+    -- Check if rollback is required
+    IF rollback_required THEN
+        -- Transaction failed
+        ROLLBACK;
+        SELECT '0' AS Message;
+    ELSE
+        -- Commit the transaction
+        COMMIT;
+        -- Transaction processed successfully
+        SELECT '1' AS Message;
+    END IF;
 
 END //
 
@@ -620,7 +641,8 @@ BEGIN
     WHERE account_number = account_number_input;
 
     -- Insert transaction record
-    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status, description)
+    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
+                             description)
     VALUES (account_number_input, 'Bank', amount_to_pay, NOW(), 'Completed',
             CONCAT('Loan ', loan_id_input, 'Payment for loan installment ID: ', installment_id_input));
 
