@@ -201,23 +201,6 @@ BEGIN
     -- Check if start_date is less than end_date and both are of type TIMESTAMP
     IF start_date < end_date THEN
 
-        -- Calculate balance at the start date by summing up previous transactions
-        SELECT COALESCE(SUM(CASE
-                                WHEN source_account_number = account_number THEN -amount
-                                ELSE amount
-            END), 0)
-        INTO balance
-        FROM `TRANSACTION`
-        WHERE (source_account_number = account_number OR destination_account_number = account_number)
-          AND transaction_date < start_date;
-
-        -- Iterate through transactions between start_date and end_date
-        SELECT id, source_account_number, destination_account_number, amount, transaction_date, status, description
-        FROM `TRANSACTION`
-        WHERE (source_account_number = account_number OR destination_account_number = account_number)
-          AND transaction_date BETWEEN start_date AND end_date
-        ORDER BY transaction_date ASC;
-
         -- Calculate balance changes during the specified period and display transactions
         SELECT 1       AS Status,
                source_account_number,
@@ -227,15 +210,14 @@ BEGIN
                status,
                description,
                CASE
-                   WHEN source_account_number = account_number THEN @balance := @balance - amount
-                   ELSE @balance := @balance + amount
+                   WHEN source_account_number = account_number THEN source_account_balance
+                   WHEN destination_account_number = account_number THEN destination_account_balance
                    END AS new_balance,
                CASE
                    WHEN source_account_number = account_number THEN 'Withdraw'
                    ELSE 'Deposit'
                    END AS transaction_type
-        FROM (SELECT @balance := balance) AS balance_init,
-             `TRANSACTION`
+        FROM `TRANSACTION`
         WHERE (source_account_number = account_number OR destination_account_number = account_number)
           AND transaction_date BETWEEN start_date AND end_date
         ORDER BY transaction_date ASC;
@@ -320,6 +302,7 @@ CREATE PROCEDURE TransferFunds(
 )
 BEGIN
     DECLARE source_balance NUMERIC(20, 2);
+    DECLARE destination_balance NUMERIC(20, 2);
 
     -- Start transaction
     START TRANSACTION;
@@ -332,13 +315,26 @@ BEGIN
 
     ELSE
         -- Deduct amount from source account
-        UPDATE BANK_ACCOUNT SET amount = amount - transfer_amount WHERE account_number = source_account_number;
+        UPDATE BANK_ACCOUNT
+        SET amount = amount - transfer_amount
+        WHERE account_number = source_account_number;
 
         -- Add amount to destination account
-        UPDATE BANK_ACCOUNT SET amount = amount + transfer_amount WHERE account_number = destination_account_number;
+        UPDATE BANK_ACCOUNT
+        SET amount = amount + transfer_amount
+        WHERE account_number = destination_account_number;
+
+        SELECT amount INTO destination_balance FROM BANK_ACCOUNT WHERE account_number = destination_account_number;
+
+        SET source_balance = source_balance - transfer_amount;
+        SET destination_balance = destination_balance + transfer_amount;
 
 
-        UPDATE TRANSACTION SET status = 'Completed' WHERE id = t_id;
+        UPDATE TRANSACTION
+        SET status                      = 'Completed',
+            source_account_balance      = source_balance,
+            destination_account_balance = destination_balance
+        WHERE id = t_id;
 
         -- Commit transaction
         COMMIT;
@@ -532,6 +528,10 @@ BEGIN
             VALUES (@loan_id, monthly_payment_amount, DATE_ADD(start_date, INTERVAL i MONTH), 0);
             SET i = i + 1;
         END WHILE;
+
+    UPDATE BANK_ACCOUNT
+    SET amount = amount + input_loan_amount
+    WHERE account_number = input_account_number;
 
     -- Check if rollback is required
     IF rollback_required THEN
