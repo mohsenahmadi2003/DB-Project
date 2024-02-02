@@ -710,6 +710,7 @@ class ORM:
                 print("اتصال MySQL بسته شد.")
 
         return result
+
     @staticmethod
     def get_loan_payment_status(loan_id_input: int):
         """
@@ -759,6 +760,58 @@ class ORM:
 
         return result
 
+    @staticmethod
+    def pay_loan_installment(account_number_input: str, amount_to_pay: str, loan_id_input: int,
+                             installment_id_input: int):
+        """
+        پرداخت قسط های وام
+        ورودی:
+        شماره حساب - مقدار قابل پرداخت - ایدی وام - ایدی قسط
+        :param account_number_input:
+        :param amount_to_pay:
+        :param loan_id_input:
+        :param installment_id_input:
+        :return:
+        خروجی
+        0 یا 1
+        """
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    cursor.callproc("PayLoanInstallment",
+                                    [account_number_input, amount_to_pay, loan_id_input, installment_id_input])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+
+                except mysql.connector.Error as error:
+
+                    print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
@@ -766,3 +819,4 @@ class ORM:
 # print(ORM.get_account_loans('77773333666633338888'))
 # print(ORM.get_loan_installments('3'))
 # print(ORM.get_loan_payment_status('3'))
+# print(ORM.pay_loan_installment('77773333666633338888','250.00', '3', '25'))
