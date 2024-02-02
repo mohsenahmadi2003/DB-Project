@@ -606,7 +606,7 @@ BEGIN
     SET remaining_amount = total_loan_amount - total_paid_amount;
 
     -- Return total paid amount and remaining amount
-    SELECT total_paid_amount , remaining_amount;
+    SELECT total_paid_amount, remaining_amount;
 END //
 
 DELIMITER ;
@@ -625,10 +625,10 @@ BEGIN
     DECLARE rollback_required BOOLEAN DEFAULT FALSE;
 
     -- Declare continue handler for any exception
-   DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-   BEGIN
-       SET rollback_required = TRUE;
-   END;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        BEGIN
+            SET rollback_required = TRUE;
+        END;
 
     -- Start transaction
     START TRANSACTION;
@@ -660,6 +660,49 @@ BEGIN
         -- Transaction processed successfully
         SELECT '1' AS Message;
     END IF;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GenerateLoanProposals(
+    IN input_loan_amount NUMERIC(20, 2)
+)
+BEGIN
+    DECLARE bank_interest_rate DECIMAL(5, 2);
+    DECLARE total_loan_amount NUMERIC(20, 2);
+    DECLARE monthly_payment_amount NUMERIC(10, 2);
+    DECLARE start_date TIMESTAMP;
+    DECLARE end_date TIMESTAMP;
+
+    DECLARE output_data TEXT DEFAULT '';
+
+    -- Calculate bank interest rate (20%)
+    SET bank_interest_rate = 0.2;
+
+    WHILE input_loan_amount > 100
+        DO
+            -- Calculate total loan amount
+            SET total_loan_amount = input_loan_amount + (input_loan_amount * bank_interest_rate);
+
+            -- Calculate monthly payment amount
+            SET monthly_payment_amount = total_loan_amount / 12;
+
+            -- Get start and end date for loan
+            SET start_date = NOW();
+            SET end_date = DATE_ADD(start_date, INTERVAL 1 YEAR);
+
+            SET output_data =
+                    CONCAT(output_data, input_loan_amount, ' ', total_loan_amount, ' ', monthly_payment_amount, ' ',
+                           DATE(start_date), ' ', DATE(end_date), '\n');
+
+            SET input_loan_amount = input_loan_amount - 100;
+        END WHILE;
+
+    SELECT output_data AS generated_data;
+
 END //
 
 DELIMITER ;
