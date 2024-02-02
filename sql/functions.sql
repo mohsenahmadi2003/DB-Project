@@ -31,12 +31,15 @@ DELIMITER $$
 
 CREATE FUNCTION CheckSecondaryPassword(_transaction_id INT, _secondary_password VARCHAR(8)) RETURNS INT
     READS SQL DATA
-    RETURN (
-        SELECT IFNULL(
-            (SELECT 1 FROM secondary_passwords WHERE transaction_id = _transaction_id AND secondary_password = _secondary_password AND NOW() < expire_time LIMIT 1),
-            0
-        )
-    );
+    RETURN (SELECT IFNULL(
+                           (SELECT 1
+                            FROM secondary_passwords
+                            WHERE transaction_id = _transaction_id
+                              AND secondary_password = _secondary_password
+                              AND NOW() < expire_time
+                            LIMIT 1),
+                           0
+                       ));
 
 
 DELIMITER ;
@@ -75,11 +78,11 @@ BEGIN
     RETURN _email;
 END;
 
-CREATE FUNCTION GetAmountAccount(_account_number VARCHAR(20)) RETURNS DECIMAL(20,2)
+CREATE FUNCTION GetAmountAccount(_account_number VARCHAR(20)) RETURNS DECIMAL(20, 2)
     READS SQL DATA
 BEGIN
 
-    DECLARE balance DECIMAL(20,2);
+    DECLARE balance DECIMAL(20, 2);
 
     SELECT amount
     INTO balance
@@ -90,3 +93,30 @@ BEGIN
 END;
 
 
+DELIMITER //
+
+CREATE FUNCTION GetActiveLoanId(
+    account_number_input VARCHAR(20)
+)
+    RETURNS INT
+    READS SQL DATA
+
+BEGIN
+    DECLARE loan_id INT;
+
+    -- Check if an active loan exists for the given account number
+    SELECT id
+    INTO loan_id
+    FROM LOAN
+    WHERE account_number = account_number_input
+      AND loan_status = 1;
+
+    -- Return loan_id if an active loan exists, otherwise return 0
+    IF loan_id IS NOT NULL THEN
+        RETURN loan_id;
+    ELSE
+        RETURN 0;
+    END IF;
+END //
+
+DELIMITER ;
