@@ -585,9 +585,9 @@ CREATE PROCEDURE GetLoanPaymentStatus(
     IN loan_id_input INT
 )
 BEGIN
-    DECLARE total_loan_amount NUMERIC(20, 2);
-    DECLARE total_paid_amount NUMERIC(20, 2);
-    DECLARE remaining_amount NUMERIC(20, 2);
+    DECLARE total_loan_amount NUMERIC(20, 2) DEFAULT 0.0;
+    DECLARE total_paid_amount NUMERIC(20, 2) DEFAULT 0.0;
+    DECLARE remaining_amount NUMERIC(20, 2) DEFAULT 0.0;
 
     -- Get total loan amount
     SELECT loan_amount
@@ -596,7 +596,7 @@ BEGIN
     WHERE id = loan_id_input;
 
     -- Get total paid amount for the loan
-    SELECT SUM(paid_amount)
+    SELECT IFNULL(SUM(paid_amount), 0)
     INTO total_paid_amount
     FROM LOAN_PAYMENT
     WHERE loan_id = loan_id_input
@@ -606,7 +606,7 @@ BEGIN
     SET remaining_amount = total_loan_amount - total_paid_amount;
 
     -- Return total paid amount and remaining amount
-    SELECT total_paid_amount AS paid_amount, remaining_amount AS remaining_amount;
+    SELECT total_paid_amount , remaining_amount;
 END //
 
 DELIMITER ;
