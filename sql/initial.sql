@@ -19,7 +19,6 @@ CREATE TABLE `USERS` (
 );
 
 
-
 CREATE TABLE `BANK_ACCOUNT` (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
@@ -31,7 +30,7 @@ CREATE TABLE `BANK_ACCOUNT` (
     date_closed TIMESTAMP,
     account_status BOOLEAN,
     description VARCHAR(255),
-    FOREIGN KEY (user_id) REFERENCES USERS(id)
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE
 );
 
 
@@ -43,10 +42,9 @@ CREATE TABLE `LOAN` (
     start_date TIMESTAMP,
     end_date TIMESTAMP,
     loan_status BOOLEAN,
-    FOREIGN KEY (user_id) REFERENCES USERS(id),
-    FOREIGN KEY (account_number) REFERENCES BANK_ACCOUNT(account_number)
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_number) REFERENCES BANK_ACCOUNT(account_number) ON DELETE CASCADE
 );
-
 
 CREATE TABLE `LOAN_PAYMENT` (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -55,9 +53,8 @@ CREATE TABLE `LOAN_PAYMENT` (
     paid_date TIMESTAMP,
     status BOOLEAN,
     count_of_payment TINYINT,
-    FOREIGN KEY (loan_id) REFERENCES LOAN(id)
+    FOREIGN KEY (loan_id) REFERENCES LOAN(id) ON DELETE CASCADE
 );
-
 
 CREATE TABLE `TRANSACTION` (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -68,8 +65,8 @@ CREATE TABLE `TRANSACTION` (
     transaction_date TIMESTAMP,
     status VARCHAR(10),
     description VARCHAR(255),
-    FOREIGN KEY (source_account_number) REFERENCES BANK_ACCOUNT(account_number),
-    FOREIGN KEY (destination_account_number) REFERENCES BANK_ACCOUNT(account_number)
+    FOREIGN KEY (source_account_number) REFERENCES BANK_ACCOUNT(account_number) ON DELETE CASCADE,
+    FOREIGN KEY (destination_account_number) REFERENCES BANK_ACCOUNT(account_number) ON DELETE CASCADE
 );
 
 CREATE TABLE `SECONDARY_PASSWORDS` (
@@ -79,8 +76,8 @@ CREATE TABLE `SECONDARY_PASSWORDS` (
     secondary_password VARCHAR(8),
     expire_time TIMESTAMP,
     UNIQUE (bank_account_number, transaction_id),
-    FOREIGN KEY (bank_account_number) REFERENCES BANK_ACCOUNT(account_number),
-    FOREIGN KEY (transaction_id) REFERENCES TRANSACTION(id)
+    FOREIGN KEY (bank_account_number) REFERENCES BANK_ACCOUNT(account_number) ON DELETE CASCADE,
+    FOREIGN KEY (transaction_id) REFERENCES TRANSACTION(id) ON DELETE CASCADE
 );
 
 
