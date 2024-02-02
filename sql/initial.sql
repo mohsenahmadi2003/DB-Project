@@ -1,6 +1,11 @@
--- drop database bank;
--- create database bank;
--- use bank;
+# DROP TABLE USERS;
+# DROP TABLE BANK_ACCOUNT;
+# DROP TABLE LOAN;
+# DROP TABLE LOAN_PAYMENT;
+# DROP TABLE TRANSACTION;
+# DROP TABLE SECONDARY_PASSWORDS;
+
+
 
 CREATE TABLE `USERS` (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -13,7 +18,6 @@ CREATE TABLE `USERS` (
     address VARCHAR(255),
     phone_number VARCHAR(20) UNIQUE,
     email VARCHAR(32) UNIQUE,
-    last_login TIMESTAMP,
     date_joined TIMESTAMP,
     is_superuser BOOLEAN
 );
@@ -25,7 +29,6 @@ CREATE TABLE `BANK_ACCOUNT` (
     account_number VARCHAR(20) UNIQUE,
     primary_password VARCHAR(4),
     amount NUMERIC(20,2),
-    rate NUMERIC(10,2),
     date_opened TIMESTAMP,
     date_closed TIMESTAMP,
     account_status BOOLEAN,
@@ -52,7 +55,6 @@ CREATE TABLE `LOAN_PAYMENT` (
     paid_amount NUMERIC(10, 2),
     paid_date TIMESTAMP,
     status BOOLEAN,
-    count_of_payment TINYINT,
     FOREIGN KEY (loan_id) REFERENCES LOAN(id) ON DELETE CASCADE
 );
 
@@ -81,16 +83,4 @@ CREATE TABLE `SECONDARY_PASSWORDS` (
 );
 
 
-
--- ALTER TABLE `BANK_ACCOUNT` ADD FOREIGN KEY (`user_id`) REFERENCES `USERS` (`id`);
-
--- ALTER TABLE `LOAN` ADD FOREIGN KEY (`account_number`) REFERENCES `BANK_ACCOUNT` (`account_number`);
-
--- ALTER TABLE `LOAN` ADD FOREIGN KEY (`user_id`) REFERENCES `USERS` (`id`);
-
--- ALTER TABLE `LOAN_PAYMENT` ADD FOREIGN KEY (`loan_id`) REFERENCES `LOAN` (`id`);
-
--- ALTER TABLE `TRANSACTION` ADD FOREIGN KEY (`source_account_number`) REFERENCES `BANK_ACCOUNT` (`account_number`);
-
--- ALTER TABLE `TRANSACTION` ADD FOREIGN KEY (`destination_account_number`) REFERENCES `BANK_ACCOUNT` (`account_number`);
 
