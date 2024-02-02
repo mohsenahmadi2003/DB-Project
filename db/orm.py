@@ -939,6 +939,45 @@ class ORM:
         return result
 
 
+    @staticmethod
+    def get_min_balance_by_account_number(account_number: str):
+        """
+        پیدا کردن min موجودی 2 ماه اخیر
+        :param account_number:
+        :return:
+        یک عدد
+        """
+
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                # ساخت کوئری برای ایجاد تابع در پایگاه داده
+                cursor.execute(F"SELECT GetMinBalanceByAccountNumber({account_number})")
+                result = cursor.fetchone()
+                print(result)
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result[0]
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
@@ -947,5 +986,5 @@ class ORM:
 # print(ORM.get_loan_installments('3'))
 # print(ORM.get_loan_payment_status('3'))
 # print(ORM.pay_loan_installment('77773333666633338888','250.00', '3', '25'))
-# print(ORM.get_active_loan_id('77773333666633338888'))
-# print(ORM.generate_loan_proposals('1000.00'))
+print(ORM.get_min_balance_by_account_number('77773333666633338888'))
+# print(ORM.generate_loan_proposals('1000.00'))77773333666633338888
