@@ -888,6 +888,62 @@ class ORM:
 
         return result[0]
 
+    @staticmethod
+    def generate_loan_proposals(input_loan_amount: str):
+        """
+        برای ایجاد وام های پیشنهادی هست. البته وام اصلی کاربر هم داخلش هیت و به عنوان اولین رکورد هست
+        :param input_loan_amount:
+        :return:
+        [['600.00', '720.00', '60.00', '2024-02-02', '2025-02-02'],
+         ['500.00', '600.00', '50.00', '2024-02-02', '2025-02-02']]
+        """
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    cursor.callproc("GenerateLoanProposals",
+                                    [input_loan_amount])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+                    print(result)
+                except mysql.connector.Error as error:
+
+                    print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        # تقسیم رشته بر اساس خطوط
+        lines = result[0].split('\n')
+
+        # فیلتر کردن خطوط با استفاده از شرط مورد نظر
+        filtered_lines = filter(lambda line:line, lines)
+
+        # تبدیل خطوط فیلتر شده به لیست
+        result = [line.split() for line in filtered_lines]
+
+        return result
+
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
@@ -897,3 +953,4 @@ class ORM:
 # print(ORM.get_loan_payment_status('3'))
 # print(ORM.pay_loan_installment('77773333666633338888','250.00', '3', '25'))
 # print(ORM.get_active_loan_id('77773333666633338888'))
+# print(ORM.generate_loan_proposals('1000.00'))
