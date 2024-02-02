@@ -624,13 +624,11 @@ BEGIN
     -- Declare rollback_required variable
     DECLARE rollback_required BOOLEAN DEFAULT FALSE;
 
-
     -- Declare continue handler for any exception
-    DECLARE CONTINUE
-        HANDLER FOR SQLEXCEPTION
-        BEGIN
-            SET rollback_required = TRUE;
-        END;
+   DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+   BEGIN
+       SET rollback_required = TRUE;
+   END;
 
     -- Start transaction
     START TRANSACTION;
@@ -644,7 +642,7 @@ BEGIN
     INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
                              description)
     VALUES (account_number_input, 'Bank', amount_to_pay, NOW(), 'Completed',
-            CONCAT('Loan ', loan_id_input, 'Payment for loan installment ID: ', installment_id_input));
+            CONCAT('Loan ', loan_id_input, ' Payment for loan installment ID: ', installment_id_input));
 
     -- Update loan payment status
     UPDATE LOAN_PAYMENT
