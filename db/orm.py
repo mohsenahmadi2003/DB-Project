@@ -627,7 +627,7 @@ class ORM:
         یک لیست که هر عضو آن یک تاپل هست
         """
 
-        result: list = []
+        result = None
         db = None
         cursor = None
         try:
@@ -644,14 +644,9 @@ class ORM:
                                     [input_account_number])
 
                     for date in cursor.stored_results():
-                        result.append(date.fetchone())
-
-                    db.commit()
-
+                        result = date.fetchall()
 
                 except mysql.connector.Error as error:
-                    # Rollback تراکنش در صورت بروز خطا
-                    db.rollback()
 
                     print("Error:", error)
 
@@ -668,8 +663,57 @@ class ORM:
                 print("اتصال MySQL بسته شد.")
 
         return result
+
+    @staticmethod
+    def get_loan_installments(loan_id_input: int):
+        """
+        تمام قسط های یک وام را بر میگرداند
+        وروی هم ایدی یک وام را میگیرد
+        :param loan_id_input:
+        :return:
+        یک لیست که هر عضو آن یک تاپل هست
+        """
+
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    cursor.callproc("GetLoanInstallments",
+                                    [loan_id_input])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchall()
+
+                except mysql.connector.Error as error:
+
+                    print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
 # print(ORM.insert_loan_and_payments(1, '77773333666633338888', "2500.00"))
 # print(ORM.get_account_loans('77773333666633338888'))
+# print(ORM.get_loan_installments('3'))
