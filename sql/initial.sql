@@ -63,6 +63,8 @@ CREATE TABLE `TRANSACTION` (
     source_account_number VARCHAR(20),
     destination_account_number VARCHAR(20),
     amount NUMERIC(10, 2),
+    source_account_balance NUMERIC(20, 2),
+    destination_account_balance NUMERIC(20, 2),
     transaction_date TIMESTAMP,
     status VARCHAR(10),
     description VARCHAR(255),
