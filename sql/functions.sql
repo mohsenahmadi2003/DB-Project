@@ -131,7 +131,7 @@ CREATE FUNCTION GetSmallestUnpaidInstallment(
     READS SQL DATA
 
 BEGIN
-    DECLARE smallest_id INT DEFAULT 0;
+    DECLARE smallest_id INT;
 
     -- Find the smallest unpaid installment amount for the given loan_id
     SELECT MIN(id)
@@ -140,8 +140,14 @@ BEGIN
     WHERE loan_id = loan_id_input
       AND status = 0;
 
-    -- Return the smallest unpaid installment amount
-    RETURN smallest_id;
+    IF smallest_id IS NULL THEN
+        return 0;
+    else
+
+        -- Return the smallest unpaid installment amount
+        RETURN smallest_id;
+    end if;
+
 END//
 
 DELIMITER ;
@@ -165,13 +171,15 @@ BEGIN
     SELECT MIN(source_account_balance)
     INTO min_balance_source
     FROM transaction
-    WHERE source_account_number = account_number_input AND transaction_date BETWEEN start_date AND end_date;
+    WHERE source_account_number = account_number_input
+      AND transaction_date BETWEEN start_date AND end_date;
 
     -- Find minimum balance based on destination_account_number
     SELECT MIN(destination_account_balance)
     INTO min_balance_destination
     FROM transaction
-    WHERE destination_account_number = account_number_input AND transaction_date BETWEEN start_date AND end_date;
+    WHERE destination_account_number = account_number_input
+      AND transaction_date BETWEEN start_date AND end_date;
 
     -- Return the minimum balance
     RETURN LEAST(COALESCE(min_balance_source, min_balance_destination), COALESCE(min_balance_destination, min_balance_source));
