@@ -787,3 +787,60 @@ BEGIN
 END //
 
 DELIMITER ;
+
+
+
+-- Admin Procedure
+
+DELIMITER $$
+
+CREATE PROCEDURE `AddUser`(IN p_username VARCHAR(32),
+                               IN p_password VARCHAR(64),
+                               IN p_first_name VARCHAR(32),
+                               IN p_last_name VARCHAR(32),
+                               IN p_national_code VARCHAR(10),
+                               IN p_date_of_birth DATE,
+                               IN p_address VARCHAR(255),
+                               IN p_phone_number VARCHAR(20),
+                               IN p_email VARCHAR(32),
+                               IN p_is_superuser BOOLEAN)
+BEGIN
+    DECLARE exit handler for sqlexception
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    DECLARE exit handler for sqlwarning
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    -- Check if username already exists
+    IF EXISTS (SELECT 1 FROM USERS WHERE username = p_username) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'نام کاربری تکراری است';
+    END IF;
+
+    -- Check if phone_number already exists
+    IF EXISTS (SELECT 1 FROM USERS WHERE phone_number = p_phone_number) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'شماره تلفن تکراری است';
+    END IF;
+
+    -- Check if email already exists
+    IF EXISTS (SELECT 1 FROM USERS WHERE email = p_email) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ایمیل تکراری است';
+    END IF;
+
+    -- Insert user into USERS table
+    INSERT INTO USERS (username, password, first_name, last_name, national_code, date_of_birth, address, phone_number, email, date_joined, is_superuser)
+    VALUES (p_username, p_password, p_first_name, p_last_name, p_national_code, p_date_of_birth, p_address, p_phone_number, p_email, NOW(), p_is_superuser);
+
+    COMMIT;
+
+    SELECT 1 AS Message;
+END$$
+
+DELIMITER ;
