@@ -844,3 +844,69 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+DELIMITER $$
+
+CREATE PROCEDURE `AddBankAccount`(
+    IN p_user_id INT,
+    IN p_account_number VARCHAR(20),
+    IN p_primary_password VARCHAR(4),
+    IN p_amount NUMERIC(20,2),
+    IN p_date_opened TIMESTAMP,
+    IN p_date_closed TIMESTAMP,
+    IN p_account_status BOOLEAN,
+    IN p_description VARCHAR(255)
+)
+BEGIN
+    DECLARE exit handler for sqlexception
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    DECLARE exit handler for sqlwarning
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    -- Check if account_number already exists
+    IF EXISTS (SELECT 1 FROM BANK_ACCOUNT WHERE account_number = p_account_number) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'شماره حساب تکراری است';
+    END IF;
+
+    -- Insert bank account into BANK_ACCOUNT table
+    INSERT INTO BANK_ACCOUNT (
+        user_id,
+        account_number,
+        primary_password,
+        amount,
+        date_opened,
+        date_closed,
+        account_status,
+        description
+    ) VALUES (
+        p_user_id,
+        p_account_number,
+        p_primary_password,
+        p_amount,
+        p_date_opened,
+        p_date_closed,
+        p_account_status,
+        p_description
+    );
+
+    -- Insert transaction record for the loan deposit
+    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
+                             description, source_account_balance, destination_account_balance)
+    VALUES ('Bank', p_account_number, p_amount, NOW(),
+            'Completed', 'Bank deposit', 0, p_amount);
+    COMMIT;
+
+    SELECT 1 AS Message;
+END$$
+
+DELIMITER ;
