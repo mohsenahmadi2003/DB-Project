@@ -62,7 +62,6 @@ class LoansTab(ttk.Frame):
         self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
 
         user_accounts = ORM.get_bank_accounts(self.id)
-        print(user_accounts)
         self.user_accounts_combo['values'] = [f"{account[2]}" for account in
                                               user_accounts if account[7] == 0]
 
@@ -70,13 +69,11 @@ class LoansTab(ttk.Frame):
             self.loans_tree.delete(item)
 
     def on_user_account_selected(self, event):
-        print("11")
         for item in self.loans_tree.get_children():
             self.loans_tree.delete(item)
 
         selected_value = event.widget.get()
         loans = ORM.get_account_loans(selected_value)
-        print(loans)
         for index, item in enumerate(loans):
             self.loans_tree.insert("", tk.END, text=str(index + 1),
                                    values=(f"{item[2]}", f"{item[3]}", f"{item[4]}", f"{item[5]}",
@@ -158,7 +155,6 @@ class LoansOfferTab(ttk.Frame):
         selected_row = self.loans_tree.focus()  # دریافت ردیف انتخاب شده
         if selected_row:  # اگر ردیفی انتخاب شده باشد
             row_data = self.loans_tree.item(selected_row, 'values')  # دریافت داده‌های مربوط به ردیف انتخاب شده
-            print("Selected Row Data:", row_data)
             self.row_data = row_data
 
     def request_loan(self):
@@ -176,7 +172,8 @@ class LoansOfferTab(ttk.Frame):
             messagebox.showinfo("نتیحه", "شما وام فعال برای این حساب دارید")
             return
         else:
-            output = ORM.insert_loan_and_payments(self.id, account_number, self.row_data[0])
+            output = ORM.insert_loan_and_payments(self.id, str(account_number), str(self.row_data[0]))
+            print(f"{output=}")
             if output == False:
                 messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
             if int(output) == 1:
@@ -188,7 +185,6 @@ class LoansOfferTab(ttk.Frame):
         self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
 
         user_accounts = ORM.get_bank_accounts(self.id)
-        print(user_accounts)
         self.user_accounts_combo['values'] = [f"{account[2]}" for account in
                                               user_accounts if account[7] == 0]
 
@@ -203,8 +199,9 @@ class LoansOfferTab(ttk.Frame):
         selected_value = event.widget.get()
 
         min_balance_two_month_ago = ORM.get_min_balance_by_account_number(selected_value)
-        print(min_balance_two_month_ago)
+        print(f"{min_balance_two_month_ago=}")
         result: list = ORM.generate_loan_proposals(min_balance_two_month_ago)
+        print(result)
         loan_type = None
         for index, item in enumerate(result):
             if index == 0:
@@ -215,6 +212,346 @@ class LoansOfferTab(ttk.Frame):
                                    values=(f"{item[0]}", f"{item[1]}", f"{item[2]}", f"{item[3]}",
                                            f"{item[4]}", loan_type),
                                    tags=('center',))
+
+
+class LoanInstallmentPayment(ttk.Frame):
+    def __init__(self, parent, id, email):
+        super().__init__(parent)
+        self.id = id
+        self.email = email
+        self.small_installment = None
+        self.row_data = None
+        self.t_id = None
+        self.create_loans_table()
+
+    def create_loans_table(self):
+        filter_frame = ttk.Frame(self)
+        filter_frame.pack(fill="x", expand=False)
+
+        self.update_date_button = ttk.Button(filter_frame, text="آپدیت اطلاعات", command=self.update_date)
+        self.update_date_button.pack(side="right", padx=5, pady=5)
+
+        user_accounts_label = ttk.Label(filter_frame, text="انتخاب حساب")
+        user_accounts_label.pack(side="left", padx=5, pady=5)
+
+        self.user_accounts_combo = ttk.Combobox(filter_frame, state="readonly", width=25)
+        self.user_accounts_combo.pack(side="left", padx=5, pady=5)
+        self.user_accounts_combo.bind("<<ComboboxSelected>>", self.on_user_account_selected)
+
+        loans_label = ttk.Label(filter_frame, text="انتخاب وام")
+        loans_label.pack(side="left", padx=5, pady=5)
+
+        self.loans_combo = ttk.Combobox(filter_frame, state="readonly", width=25)
+        self.loans_combo.pack(side="left", padx=5, pady=5)
+        self.loans_combo.bind("<<ComboboxSelected>>", self.on_loans_selected)
+
+        loan_list_frame = ttk.Frame(self)
+        loan_list_frame.pack(fill="both", expand=True)
+
+        self.loans_installment_tree = ttk.Treeview(loan_list_frame, columns=('ردیف',
+                                                                             'شماره قسط', "شماره وام",
+                                                                             "مبلغ قابل پرداختی", "تاریخ پرداخت",
+                                                                             "وضعیت پرداخت"), selectmode="browse")
+        self.loans_installment_tree.pack(fill="both", expand=True)
+
+        self.loans_installment_tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        self.loans_installment_tree.bind("<FocusOut>",
+                                         lambda event: self.loans_installment_tree.selection_remove(
+                                             self.loans_installment_tree.selection()))
+
+        self.loans_installment_tree.heading("#0", text="شماره ردیف", anchor="center")
+        self.loans_installment_tree.column("#0", anchor='center')
+
+        self.loans_installment_tree.heading("#1", text="شماره قسط", anchor="center")
+        self.loans_installment_tree.column("#1", anchor='center')
+
+        self.loans_installment_tree.heading("#2", text="شماره وام", anchor="center")
+        self.loans_installment_tree.column("#2", anchor='center')
+
+        self.loans_installment_tree.heading("#3", text="مبلغ قابل پرداختی", anchor="center")
+        self.loans_installment_tree.column("#3", anchor='center')
+
+        self.loans_installment_tree.heading("#4", text="تاریخ پرداخت", anchor="center")
+        self.loans_installment_tree.column("#4", anchor='center')
+
+        self.loans_installment_tree.heading("#5", text="وضعیت پرداخت", anchor="center")
+        self.loans_installment_tree.column("#5", anchor='center')
+
+        self.loans_installment_tree.tag_configure('center', anchor='center')
+
+        x_scrollbar = ttk.Scrollbar(loan_list_frame, orient="horizontal", command=self.loans_installment_tree.xview)
+        x_scrollbar.pack(side="bottom", fill="x")
+        self.loans_installment_tree.configure(xscrollcommand=x_scrollbar.set)
+
+        # ایجاد بخش مبلغ پرداخت شده و باقی مانده
+        amount_frame = ttk.Frame(self)
+        amount_frame.pack(fill="x", padx=5, pady=5)
+
+        self.paid_amount_label = ttk.Label(amount_frame)
+        self.paid_amount_label.pack(side="left", padx=5)
+
+        self.remaining_amount_label = ttk.Label(amount_frame)
+        self.remaining_amount_label.pack(side="left", padx=5)
+
+        self.payment_button = ttk.Button(amount_frame, text="پرداخت وام", command=self.payment_btn)
+        self.payment_button.pack(side="right", padx=5, pady=5)
+
+        transaction_frame = ttk.Frame(self)
+        transaction_frame.pack(fill="x", padx=5, pady=5)
+
+        # اضافه کردن گزینه‌ها
+        self.cancel_transaction_button = ttk.Button(transaction_frame, text="لغو تراکنش",
+                                                    command=self.cancel_transaction)
+        self.cancel_transaction_button.pack(side="left", padx=5)
+
+        self.toggle_password_button = ttk.Button(transaction_frame, text="پنهان کردن رمز",
+                                                 command=self.toggle_password_visibility)  # تغییر اندازه فونت و دکمه‌ها
+
+        self.toggle_password_button.pack(side="left", padx=5)
+
+        self.request_otp_button = ttk.Button(transaction_frame, text="درخواست رمز دوم", command=self.request_otp)
+        self.request_otp_button.pack(side="left", padx=5)
+
+        self.otp_entry = ttk.Entry(transaction_frame, show="*")
+        self.otp_entry.pack(side="left", padx=5)
+
+        self.confirm_transaction_button = ttk.Button(transaction_frame, text="تایید تراکنش",
+                                                     command=self.confirm_transfer)
+        self.confirm_transaction_button.pack(side="left", padx=5)
+
+        self.cancel_transaction_button.pack_forget()
+        self.otp_entry.pack_forget()
+        self.confirm_transaction_button.pack_forget()
+        self.request_otp_button.pack_forget()
+        self.toggle_password_button.pack_forget()
+        # transaction_frame.pack_forget()
+        self.payment_button['state'] = "disabled"
+
+        self.update_date()
+
+    def confirm_transfer(self):
+        second_password = str(self.otp_entry.get())
+        result = ORM.check_secondary_password(self.t_id, second_password)
+        if result == 0:
+            tk.messagebox.showerror("خطا", "رمز دوم نا معتبر هست!")
+            return
+            # بررسی رمز دوم
+        elif int(result) == 1:
+            account_number: str = self.user_accounts_combo.get()
+            transfer_amount = self.row_data[2]
+            loan_id = self.row_data[1]
+            loan_installment_id = self.row_data[0]
+            output = ORM.pay_loan_installment(account_number, transfer_amount, loan_id, loan_installment_id, self.t_id)
+            print(f"{output=}")
+            if output == False:
+                tk.messagebox.showerror("خطا",
+                                        "خطا در اتصال به پایگاه داده")
+                return
+            elif int(output[0]) == 1:
+                tk.messagebox.showinfo("موفقیت",
+                                       "تراکنش با موفقیت انجام شد")
+
+                email_sender = EmailSender()
+                email_sender.connect_email()
+
+                send_amount = ORM.get_amount_account(account_number)
+
+                email_sender.send_mail(receiver=self.email, subject="ّبرداشت",
+                                       html_body=EmailNotification.withdraw(send_amount, transfer_amount,
+                                                                            account_number))
+                email_sender.close_connection()
+
+                self.cancel_transaction_button.grid_forget()
+                self.otp_entry.grid_forget()
+                self.otp_entry.delete(0, tk.END)  # پاک کردن مقدار داخلی
+                self.confirm_transaction_button.grid_forget()
+                self.request_otp_button.grid_forget()
+                self.toggle_password_button.grid_forget()
+
+                # فعال کردن Combobox و Treeview
+                self.payment_button['state'] = "normal"
+                self.update_date_button['state'] = "normal"
+                self.user_accounts_combo['state'] = "readonly"
+                self.payment_button['state'] = "disabled"
+                self.loans_combo['state'] = "readonly"
+                self.loans_installment_tree['selectmode'] = "browse"
+
+                small = ORM.get_smallest_unpaid_installment(loan_id)
+                print(small)
+                if int(small) == 0:
+                    out = ORM.change_loan_status(loan_id)
+                    if int(out[0]) == 1:
+                        messagebox.showinfo("نتیجه", "تمام اقساط وام شما پرداخت شد")
+
+                self.update_date()
+            else:
+                tk.messagebox.showerror("خطا", "موجودی حساب کافی نیست!")
+        else:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در اتصال به پایگاه داده")
+
+    def toggle_password_visibility(self):
+        if self.otp_entry.cget("show") == "":
+            self.otp_entry.config(show="*")
+            self.toggle_password_button.config(text="نمایش رمز")
+        else:
+            self.otp_entry.config(show="")
+            self.toggle_password_button.config(text="پنهان کردن رمز")
+
+    def disable_button(self):
+        self.request_otp_button.config(state=tk.DISABLED)
+
+    def enable_button(self):
+        self.request_otp_button.config(state=tk.NORMAL)
+
+    def clicked(self):
+        self.disable_button()
+        self.after(60000, self.enable_button)  # 60000 میلی ثانیه معادل 1 دقیقه است
+
+    def request_otp(self):
+        account_number: str = self.user_accounts_combo.get()
+        result = ORM.secondary_password(self.t_id, account_number)
+        if result == False:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در اتصال به پایگاه داده")
+            return
+        elif int(result[0]) == 1:
+            self.clicked()
+            tk.messagebox.showinfo("نتیجه",
+                                   "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا یک دقیقه بیشتر اعتبار ندارد.")
+
+            email_sender = EmailSender()
+            email_sender.connect_email()
+
+            email_sender.send_mail(receiver=self.email, subject="رمز دوم",
+                                   html_body=EmailNotification.secondary_password(result[1]))
+            email_sender.close_connection()
+
+        else:
+            tk.messagebox.showerror("خطا",
+                                    "خطا در ثبت و ارسال رمز دوم")
+
+    def cancel_transaction(self):
+
+        confirm_cancel = tk.messagebox.askyesno("تایید لغو تراکنش",
+                                                "آیا مطمئن هستید که می‌خواهید این تراکنش را لغو کنید؟")
+        if confirm_cancel:
+            account_number: str = self.user_accounts_combo.get()
+
+            result = ORM.cancel_transaction(self.t_id, account_number, "Bank")
+            if result == False:
+                tk.messagebox.showerror("خطا",
+                                        "خطا در اتصال به پایگاه داده")
+                return
+            elif (int(result[0])) == 1:
+                self.cancel_transaction_button.grid_forget()
+                self.otp_entry.grid_forget()
+                self.otp_entry.delete(0, tk.END)  # پاک کردن مقدار داخلی
+                self.confirm_transaction_button.grid_forget()
+                self.request_otp_button.grid_forget()
+                self.toggle_password_button.grid_forget()
+
+                # فعال کردن Combobox و Treeview
+                self.payment_button['state'] = "normal"
+                self.update_date_button['state'] = "normal"
+                self.user_accounts_combo['state'] = "readonly"
+                self.update_date_button['state'] = "normal"
+                self.loans_combo['state'] = "readonly"
+                self.loans_installment_tree['selectmode'] = "browse"
+
+                self.update_date()
+
+                tk.messagebox.showinfo("نتیجه",
+                                       "تراکنش با موفقیت لغو شد")
+            elif (int(result[0])) == 0:
+                tk.messagebox.showerror("خطا",
+                                        "تراکنش لغو نشد")
+
+    def payment_btn(self):
+        """
+        create transaction
+        :return:
+        """
+        self.user_accounts_combo['state'] = "disabled"
+        self.loans_combo['state'] = "disabled"
+        self.payment_button['state'] = "disabled"
+        self.update_date_button['state'] = "disabled"
+        self.user_accounts_combo['state'] = "disabled"
+        self.loans_installment_tree['selectmode'] = "none"
+
+        self.cancel_transaction_button.grid(row=0, column=0, padx=5)
+        self.request_otp_button.grid(row=0, column=2, padx=5)
+        self.otp_entry.grid(row=0, column=3, padx=5)
+        self.toggle_password_button.grid(row=0, column=4, padx=5)
+        self.confirm_transaction_button.grid(row=0, column=5, padx=5)
+
+        account_number: str = self.user_accounts_combo.get()
+        transfer_amount = self.row_data[2]
+        result = ORM.create_transaction(account_number, 'Bank', transfer_amount, "none")
+        self.t_id = result[1]
+
+    def on_tree_select(self, event):
+        selected_row = self.loans_installment_tree.focus()  # دریافت ردیف انتخاب شده
+        if selected_row:  # اگر ردیفی انتخاب شده باشد
+            row_data = self.loans_installment_tree.item(selected_row,
+                                                        'values')  # دریافت داده‌های مربوط به ردیف انتخاب شده
+            self.row_data = row_data
+
+            if int(row_data[0]) == self.small_installment:
+                self.payment_button['state'] = "normal"
+            else:
+                self.payment_button['state'] = "disabled"
+
+    def update_date(self):
+        # پاک کردن گزینه‌ها در Combobox
+        self.user_accounts_combo.set('')
+        self.user_accounts_combo['values'] = []
+
+        self.loans_combo.set('')
+        self.loans_combo['values'] = []
+
+        self.paid_amount_label['text'] = 'مبلغ پرداخت شده'
+        self.remaining_amount_label['text'] = 'مبلغ باقی مانده'
+
+        # حذف ردیف‌ها در Treeview
+        self.loans_installment_tree.delete(*self.loans_installment_tree.get_children())
+
+        user_accounts = ORM.get_bank_accounts(self.id)
+        self.user_accounts_combo['values'] = [f"{account[2]}" for account in
+                                              user_accounts if account[7] == 0]
+
+    def on_loans_selected(self, event):
+        loan_id = event.widget.get()
+
+        self.loans_installment_tree.delete(*self.loans_installment_tree.get_children())
+
+        loan_installment: list = ORM.get_loan_installments(loan_id)
+        for index, item in enumerate(loan_installment):
+            self.loans_installment_tree.insert("", tk.END, text=str(index+1),
+                                               values=(f"{item[0]}", f"{item[1]}", f"{item[2]}", f"{item[3]}",
+                                                       f"{'پرداخت نشده' if item[4] == 0 else 'پرداخت شده'}"),
+                                               tags=('center',))
+
+        paid_amount_and_remaining = ORM.get_loan_payment_status(loan_id)
+
+        self.paid_amount_label['text'] = f" مبلغ پرداخت شده: {paid_amount_and_remaining[0]}"
+        self.remaining_amount_label['text'] = f" مبلغ باقی مانده: {paid_amount_and_remaining[1]}"
+
+        small = ORM.get_smallest_unpaid_installment(loan_id)
+        self.small_installment = small
+
+
+    def on_user_account_selected(self, event):
+        self.loans_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
+
+        self.loans_installment_tree.delete(*self.loans_installment_tree.get_children())
+
+        self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
+
+        account_number = event.widget.get()
+        loans = ORM.get_account_loans(account_number)
+        self.loans_combo['values'] = [f"{loan[0]}" for loan in
+                                      loans if loan[6] == 1]
 
 
 class AccountsTab(ttk.Frame):
@@ -340,7 +677,6 @@ class AccountsTab(ttk.Frame):
             self.selected_date_closed_label.config(text=f"تاریخ بسته شدن حساب: {data[6]}")
             self.selected_description_entry.delete(0, tk.END)  # پاک کردن محتویات اولیه توضیحات
             self.selected_description_entry.insert(0, data[8])  # وارد کردن توضیحات از دیتابیس
-            print(data)
             if bool(data[7]) == True:
                 self.selected_description_entry.config(state='disabled')
                 self.selected_account_status_checkbutton.config(state='disabled')
@@ -426,7 +762,6 @@ class SettingsTab(ttk.Frame):
         if result == False:
             messagebox.showinfo("خطا", "خطا در اتصال به پایگاه داده")
         else:
-            print(result)
             msg = str(result[0])
             status = bool(int(result[1]))
 
@@ -569,7 +904,6 @@ class TransactionsTab(ttk.Frame):
         self.transaction_tree.configure(xscrollcommand=scroll_horizontal.set)
 
     def update_date(self):
-        print("update")
         self.user_accounts_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
 
         user_accounts = ORM.get_bank_accounts(self.id)
@@ -604,7 +938,6 @@ class TransactionsTab(ttk.Frame):
             if transaction_count.isdigit() and int(transaction_count) != 0:
                 transaction_count = int(transaction_count)
                 result: list = ORM.get_recent_transactions_by_user(account_number, transaction_count)
-                print(result)
                 if result == False:
                     messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
                 elif result == []:
@@ -624,9 +957,7 @@ class TransactionsTab(ttk.Frame):
         elif filter_type == "تاریخ":
             start_date = self.start_date_entry.get_date()
             end_date = self.end_date_entry.get_date()
-            print(start_date, end_date)
             result: list = ORM.calculate_account_balance_with_date(account_number, start_date, end_date)
-            print(result)
             if result == False:
                 messagebox.showerror("خطا", "خطا در اتصال به پایگاه داده")
             elif result == []:
@@ -676,7 +1007,6 @@ class TransferFundsTab(ttk.Frame):
 
         self.source_account_combobox = ttk.Combobox(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
         self.source_account_combobox.grid(row=1, column=1, sticky=tk.W, pady=10)
-        print(self.user_accounts)
         self.source_account_combobox['values'] = [f"{account[2]}" for account in
                                                   self.user_accounts if account[8] == 0]
 
@@ -750,7 +1080,6 @@ class TransferFundsTab(ttk.Frame):
         self.update_date()
 
     def update_date(self):
-        print("update")
         self.source_account_combobox.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
 
         user_accounts = ORM.get_bank_accounts(self.id)
@@ -779,7 +1108,6 @@ class TransferFundsTab(ttk.Frame):
     def request_secondary_password(self):
         source_account_number: str = self.source_account_combobox.get()
         result = ORM.secondary_password(self.tranaction_id, source_account_number)
-        print(result)
         if result == False:
             tk.messagebox.showerror("خطا",
                                     "خطا در اتصال به پایگاه داده")
@@ -795,18 +1123,20 @@ class TransferFundsTab(ttk.Frame):
             email_sender.send_mail(receiver=self.email, subject="رمز دوم",
                                    html_body=EmailNotification.secondary_password(result[1]))
             email_sender.close_connection()
-            print("رمز ارسال شد")
 
         else:
             tk.messagebox.showerror("خطا",
                                     "خطا در ثبت و ارسال رمز دوم")
 
     def cancel_transaction(self):
+        destination_account_number: str = self.destination_account_entry.get()
+        source_account_number: str = self.source_account_combobox.get()
+
         confirm_cancel = tk.messagebox.askyesno("تایید لغو تراکنش",
                                                 "آیا مطمئن هستید که می‌خواهید این تراکنش را لغو کنید؟")
         if confirm_cancel:
 
-            result = ORM.cancel_transaction(self.tranaction_id)
+            result = ORM.cancel_transaction(self.tranaction_id, source_account_number, destination_account_number)
             if result == False:
                 tk.messagebox.showerror("خطا",
                                         "خطا در اتصال به پایگاه داده")
@@ -917,9 +1247,7 @@ class TransferFundsTab(ttk.Frame):
 
     def confirm_transfer(self):
         second_password = self.password_entry.get()
-        print(f"{second_password=}")
         result = ORM.check_secondary_password(self.tranaction_id, second_password)
-        print('result - check_secondary_password', result)
         if result == 0:
             tk.messagebox.showerror("خطا", "رمز دوم نا معتبر هست!")
             return
@@ -933,7 +1261,6 @@ class TransferFundsTab(ttk.Frame):
                                         destination_account_number=destination_account_number,
                                         transfer_amount=transfer_amount,
                                         transaction_id=int(self.tranaction_id))
-            print('output = ', output)
             if output == False:
                 tk.messagebox.showerror("خطا",
                                         "خطا در اتصال به پایگاه داده")
@@ -995,6 +1322,9 @@ class MainWindow:
 
         self.loans_offer_tab = LoansOfferTab(self.notebook, id)
         self.notebook.add(self.loans_offer_tab, text="وام ‌های پیشنهادی من")
+
+        self.loan_installment_payment_tab = LoanInstallmentPayment(self.notebook, id, email)
+        self.notebook.add(self.loan_installment_payment_tab, text="پرداخت قسط وام")
 
         self.accounts_tab = AccountsTab(self.notebook, id)
         self.notebook.add(self.accounts_tab, text="حساب‌های بانکی")
