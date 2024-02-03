@@ -210,8 +210,10 @@ BEGIN
                status,
                description,
                CASE
-                   WHEN source_account_number = account_number THEN source_account_balance
-                   WHEN destination_account_number = account_number THEN destination_account_balance
+                   WHEN source_account_number = account_number AND source_account_balance IS NOT NULL
+                       THEN source_account_balance
+                   WHEN destination_account_number = account_number AND
+                        transaction.destination_account_balance IS NOT NULL THEN destination_account_balance
                    END AS new_balance,
                CASE
                    WHEN source_account_number = account_number THEN 'Withdraw'
@@ -423,9 +425,13 @@ DELIMITER ;
 DELIMITER //
 -- PROCEDURE for Cancel_Process_Transaction
 CREATE PROCEDURE `Cancel_Process_Transaction`(
-    IN t_id INT)
+    IN t_id INT,
+    IN input_source_account_number VARCHAR(20),
+    IN input_destination_account_number VARCHAR(20))
 BEGIN
     DECLARE exist_transaction INT;
+    DECLARE source_balance NUMERIC(10, 2);
+    DECLARE destination_balance NUMERIC(10, 2);
     DECLARE rollback_required BOOLEAN DEFAULT FALSE;
 
     -- Declare continue handler for any exception
@@ -447,8 +453,20 @@ BEGIN
 
     IF exist_transaction = 1 THEN
         -- Update transaction status
+        SELECT amount
+        INTO source_balance
+        from bank_account
+        where account_number = input_source_account_number;
+
+        SELECT amount
+        INTO destination_balance
+        from bank_account
+        where account_number = input_destination_account_number;
+
         UPDATE `transaction`
-        SET status = 'Failed'
+        SET status                      = 'Failed',
+            source_account_balance      = source_balance,
+            destination_account_balance = destination_balance
         WHERE id = t_id;
     ELSE
         -- Rollback if transaction doesn't exist
@@ -471,7 +489,6 @@ END//
 
 DELIMITER ;
 
-
 DELIMITER //
 
 CREATE PROCEDURE InsertLoanAndPayments(
@@ -482,6 +499,7 @@ CREATE PROCEDURE InsertLoanAndPayments(
 BEGIN
     DECLARE bank_interest_rate DECIMAL(5, 2);
     DECLARE total_loan_amount NUMERIC(20, 2);
+    DECLARE balance NUMERIC(20, 2);
     DECLARE monthly_payment_amount NUMERIC(10, 2);
     DECLARE start_date TIMESTAMP;
     DECLARE end_date TIMESTAMP;
@@ -532,6 +550,17 @@ BEGIN
     UPDATE BANK_ACCOUNT
     SET amount = amount + input_loan_amount
     WHERE account_number = input_account_number;
+
+    SELECT amount
+    INTO balance
+    FROM BANK_ACCOUNT
+    WHERE account_number = input_account_number;
+
+    -- Insert transaction record for the loan deposit
+    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
+                             description, source_account_balance, destination_account_balance)
+    VALUES ('Bank', input_account_number, input_loan_amount, NOW(),
+            'Completed', 'Loan deposit', 0, balance);
 
     -- Check if rollback is required
     IF rollback_required THEN
@@ -584,25 +613,16 @@ CREATE PROCEDURE GetLoanPaymentStatus(
     IN loan_id_input INT
 )
 BEGIN
-    DECLARE total_loan_amount NUMERIC(20, 2) DEFAULT 0.0;
+    -- Declare variables
     DECLARE total_paid_amount NUMERIC(20, 2) DEFAULT 0.0;
     DECLARE remaining_amount NUMERIC(20, 2) DEFAULT 0.0;
 
-    -- Get total loan amount
-    SELECT loan_amount
-    INTO total_loan_amount
-    FROM LOAN
-    WHERE id = loan_id_input;
-
-    -- Get total paid amount for the loan
-    SELECT IFNULL(SUM(paid_amount), 0)
-    INTO total_paid_amount
+    -- Get total paid amount and remaining amount for the loan
+    SELECT SUM(CASE WHEN status = 1 THEN paid_amount ELSE 0 END),
+           SUM(CASE WHEN status = 0 THEN paid_amount ELSE 0 END)
+    INTO total_paid_amount, remaining_amount
     FROM LOAN_PAYMENT
-    WHERE loan_id = loan_id_input
-      AND status = 1;
-
-    -- Calculate remaining amount
-    SET remaining_amount = total_loan_amount - total_paid_amount;
+    WHERE loan_id = loan_id_input;
 
     -- Return total paid amount and remaining amount
     SELECT total_paid_amount, remaining_amount;
@@ -617,11 +637,13 @@ CREATE PROCEDURE PayLoanInstallment(
     IN account_number_input VARCHAR(20),
     IN amount_to_pay NUMERIC(10, 2),
     IN loan_id_input INT,
-    IN installment_id_input INT
+    IN installment_id_input INT,
+    IN t_id INT
 )
 BEGIN
     -- Declare rollback_required variable
     DECLARE rollback_required BOOLEAN DEFAULT FALSE;
+    DECLARE new_amount NUMERIC(10, 2);
 
     -- Declare continue handler for any exception
     DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
@@ -629,24 +651,45 @@ BEGIN
             SET rollback_required = TRUE;
         END;
 
-    -- Start transaction
-    START TRANSACTION;
-
-    -- Update balance in BANK_ACCOUNT table
-    UPDATE BANK_ACCOUNT
-    SET amount = amount - amount_to_pay
+    SELECT amount AS amt
+    FROM bank_account
     WHERE account_number = account_number_input;
 
-    -- Insert transaction record
-    INSERT INTO TRANSACTION (source_account_number, destination_account_number, amount, transaction_date, status,
-                             description)
-    VALUES (account_number_input, 'Bank', amount_to_pay, NOW(), 'Completed',
-            CONCAT('Loan ', loan_id_input, ' Payment for loan installment ID: ', installment_id_input));
+    -- Start transaction
+    START TRANSACTION;
+    IF @amt < amount_to_pay THEN
+        ROLLBACK;
+        SELECT '0' AS Message;
 
-    -- Update loan payment status
-    UPDATE LOAN_PAYMENT
-    SET status = 1
-    WHERE id = installment_id_input;
+    ELSE
+
+        -- Update balance in BANK_ACCOUNT table
+        UPDATE BANK_ACCOUNT
+        SET amount = amount - amount_to_pay
+        WHERE account_number = account_number_input;
+
+        SELECT amount
+        INTO new_amount
+        FROM BANK_ACCOUNT
+        WHERE account_number = account_number_input;
+
+        -- Insert transaction record
+        UPDATE TRANSACTION
+        SET transaction_date       = NOW(),
+            status                 = 'Completed',
+            description            = CONCAT('Loan ', loan_id_input, ' Payment for loan installment ID: ',
+                                            installment_id_input),
+            source_account_balance = new_amount
+
+        WHERE id = t_id;
+
+        -- Update loan payment status
+        UPDATE LOAN_PAYMENT
+        SET status = 1
+        WHERE id = installment_id_input;
+
+    end if;
+
 
     -- Check if rollback is required
     IF rollback_required THEN
@@ -702,6 +745,45 @@ BEGIN
 
     SELECT output_data AS generated_data;
 
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE ChangeLoanStatus(
+    IN loan_id_input INT
+)
+BEGIN
+    -- Declare rollback_required variable
+    DECLARE rollback_required BOOLEAN DEFAULT FALSE;
+
+    -- Declare continue handler for any exception
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        BEGIN
+            SET rollback_required = TRUE;
+        END;
+
+    -- Start transaction
+    START TRANSACTION;
+
+    -- Update loan payment status
+    UPDATE LOAN
+    SET loan_status = 0
+    WHERE id = loan_id_input;
+
+    -- Check if rollback is required
+    IF rollback_required THEN
+        -- Transaction failed
+        ROLLBACK;
+        SELECT '0' AS Message;
+    ELSE
+        -- Commit the transaction
+        COMMIT;
+        -- Transaction processed successfully
+        SELECT '1' AS Message;
+    END IF;
 END //
 
 DELIMITER ;
