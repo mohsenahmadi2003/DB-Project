@@ -268,6 +268,7 @@ class ORM:
         :param transfer_amount:
         :param description:
         :return:
+        0 or 1
         """
         result = None
         db = None
@@ -316,7 +317,7 @@ class ORM:
         return result
 
     @staticmethod
-    def cancel_transaction(transaction_id: int):
+    def cancel_transaction(transaction_id: int, source_account_number, destination_account_number):
         """
         برای کسنل کردن ترنس اکشن و به حالت falid در آمدن ترنس اکشن
         :param transaction_id:
@@ -336,7 +337,7 @@ class ORM:
 
                 try:
                     cursor.callproc("Cancel_Process_Transaction",
-                                    [transaction_id])
+                                    [transaction_id, source_account_number, destination_account_number])
 
                     for date in cursor.stored_results():
                         result = date.fetchone()
@@ -450,7 +451,7 @@ class ORM:
 
                 for date in cursor.stored_results():
                     result = date.fetchall()
-
+                print(result)
                 db.commit()
 
 
@@ -568,13 +569,12 @@ class ORM:
         ایجاد وام
         ایجاد قسط های وام
         بصورت ترنس اکشن
-        
-        :param account_number: 
-        :return: 
+
+        :param account_number:
+        :return:
         موفقیت = 1
         نا موفق = 0
-        """""
-
+        """
         result = None
         db = None
         cursor = None
@@ -593,7 +593,7 @@ class ORM:
 
                     for date in cursor.stored_results():
                         result = date.fetchone()
-
+                    print(result)
                     db.commit()
 
                 except mysql.connector.Error as error:
@@ -601,6 +601,7 @@ class ORM:
                     db.rollback()
 
                     print("Error:", error)
+
 
 
         except mysql.connector.Error as error:
@@ -686,7 +687,7 @@ class ORM:
 
                     for date in cursor.stored_results():
                         result = date.fetchall()
-
+                    print(result)
                 except mysql.connector.Error as error:
 
                     print("Error:", error)
@@ -756,7 +757,7 @@ class ORM:
 
     @staticmethod
     def pay_loan_installment(account_number_input: str, amount_to_pay: str, loan_id_input: int,
-                             installment_id_input: int):
+                             installment_id_input: int, transaction_id):
         """
         پرداخت قسط های وام
         ورودی:
@@ -783,10 +784,13 @@ class ORM:
 
                 try:
                     cursor.callproc("PayLoanInstallment",
-                                    [account_number_input, amount_to_pay, loan_id_input, installment_id_input])
+                                    [account_number_input, amount_to_pay, loan_id_input, installment_id_input,
+                                     transaction_id])
 
                     for date in cursor.stored_results():
                         result = date.fetchone()
+
+                        print(result)
 
                 except mysql.connector.Error as error:
 
@@ -930,13 +934,12 @@ class ORM:
         lines = result[0].split('\n')
 
         # فیلتر کردن خطوط با استفاده از شرط مورد نظر
-        filtered_lines = filter(lambda line:line, lines)
+        filtered_lines = filter(lambda line: line, lines)
 
         # تبدیل خطوط فیلتر شده به لیست
         result = [line.split() for line in filtered_lines]
 
         return result
-
 
     @staticmethod
     def get_min_balance_by_account_number(account_number: str):
@@ -977,13 +980,54 @@ class ORM:
 
         return result[0]
 
+    @staticmethod
+    def change_loan_status(input_loan_amount: str):
+        result = None
+        db = None
+        cursor = None
+        try:
+            # ایجاد اتصال به پایگاه داده
+            db = DatabaseFactory.create_connection(host, database, db_username, db_password)
+
+            # اگر اتصال برقرار بود
+            if db.is_connected():
+                # ایجاد یک cursor برای اجرای کوئری‌ها
+                cursor = db.cursor()
+
+                try:
+                    cursor.callproc("ChangeLoanStatus",
+                                    [input_loan_amount])
+
+                    for date in cursor.stored_results():
+                        result = date.fetchone()
+                    print(result)
+                except mysql.connector.Error as error:
+
+                    print("Error:", error)
+
+
+        except mysql.connector.Error as error:
+            print("خطا در اتصال به پایگاه داده MySQL:", error)
+            return False
+
+        finally:
+            # بستن اتصال
+            if db.is_connected():
+                cursor.close()
+                db.close()
+                print("اتصال MySQL بسته شد.")
+
+        return result
+
+
 # print(
 #     ORM.create_transaction(source_account_number=12345678901234567891, destination_account_number=98765432101234567892,
 #                            transfer_amount=600, description="Fake2"))
-# print(ORM.insert_loan_and_payments(1, '77773333666633338888', "2500.00"))
+# print(ORM.insert_loan_and_payments(1, '77773333666633338888', "600.00"))
 # print(ORM.get_account_loans('77773333666633338888'))
 # print(ORM.get_loan_installments('3'))
 # print(ORM.get_loan_payment_status('3'))
 # print(ORM.pay_loan_installment('77773333666633338888','250.00', '3', '25'))
-print(ORM.get_min_balance_by_account_number('77773333666633338888'))
-# print(ORM.generate_loan_proposals('1000.00'))77773333666633338888
+# print(ORM.pay_loan_installment('77773333666633338888', '20.00', 9, 97))
+# print(ORM.generate_loan_proposals('1000.00'))
+# print(ORM.get_min_balance_by_account_number('77773333666633338888'))
