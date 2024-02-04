@@ -36,12 +36,55 @@ def hash_password(password):
     return hashed_password
 
 
-def send_email(email, subject):
+def send_email_login(email, subject):
     try:
         email_sender = EmailSender()
         email_sender.connect_email()
         email_sender.send_mail(receiver=email, subject=subject,
                                html_body=EmailNotification.login_message())
+        email_sender.close_connection()
+    except Exception as e:
+        print("Error sending email:", e)
+
+
+def send_email_deposite(email, deposite_amount, account_number):
+    try:
+        amount = ORM.get_amount_account(account_number)
+
+        email_sender = EmailSender()
+        email_sender.connect_email()
+        email_sender.send_mail(receiver=email, subject="واریز",
+                               html_body=EmailNotification.deposite(amount, str(deposite_amount),
+                                                                    account_number))
+        email_sender.close_connection()
+    except Exception as e:
+        print("Error sending email:", e)
+
+
+def send_email_withdraw(email, transfer_amount, account_number):
+    try:
+
+        amount = ORM.get_amount_account(account_number)
+
+        email_sender = EmailSender()
+        email_sender.connect_email()
+
+        email_sender.send_mail(receiver=email, subject="برداشت",
+                               html_body=EmailNotification.withdraw(amount, transfer_amount,
+                                                                    account_number))
+        email_sender.close_connection()
+    except Exception as e:
+        print("Error sending email:", e)
+
+
+def secondary_password(email, password):
+    try:
+
+        email_sender = EmailSender()
+        email_sender.connect_email()
+
+        email_sender.send_mail(receiver=email, subject="رمز دوم",
+                               html_body=EmailNotification.secondary_password(password))
         email_sender.close_connection()
     except Exception as e:
         print("Error sending email:", e)
