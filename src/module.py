@@ -28,6 +28,7 @@ import re
 from tkcalendar import DateEntry  # نیاز به نصب کتابخانه tkcalendar دارید
 import jdatetime
 from datetime import datetime, timedelta
+import threading
 
 def hash_password(password):
     # هش کردن رمز عبور با الگوریتم SHA-256
@@ -35,3 +36,12 @@ def hash_password(password):
     return hashed_password
 
 
+def send_email(email, subject):
+    try:
+        email_sender = EmailSender()
+        email_sender.connect_email()
+        email_sender.send_mail(receiver=email, subject=subject,
+                               html_body=EmailNotification.login_message())
+        email_sender.close_connection()
+    except Exception as e:
+        print("Error sending email:", e)
