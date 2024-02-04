@@ -1383,7 +1383,7 @@ class MainWindow:
     def __init__(self, id: int, email: str, username: str, first_name: str, last_name: str):
         self.root = tk.Tk()
         self.root.title("Bank Details")
-        self.root.geometry("800x800")
+        self.root.geometry("800x600")
 
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True)
