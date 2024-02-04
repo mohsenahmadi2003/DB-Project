@@ -160,8 +160,8 @@ CREATE FUNCTION GetMinBalanceByAccountNumber(
     RETURNS NUMERIC(20, 2)
     READS SQL DATA
 BEGIN
-    DECLARE min_balance_source NUMERIC(20, 2);
-    DECLARE min_balance_destination NUMERIC(20, 2);
+    DECLARE min_balance_source NUMERIC(20, 2) DEFAULT 0.00;
+    DECLARE min_balance_destination NUMERIC(20, 2) DEFAULT  0.00;
     DECLARE start_date TIMESTAMP;
     DECLARE end_date TIMESTAMP;
 
