@@ -18,7 +18,7 @@ class EmailNotification:
         return message
 
     @staticmethod
-    def secondary_password(password: int):
+    def secondary_password(password):
         current_time = JalaliDatetime.now().strftime("%Y-%m-%d %H:%M:%S")  # تاریخ و زمان حال به فرمت مناسب
         message = f"""
             <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
