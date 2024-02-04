@@ -199,7 +199,7 @@ CREATE PROCEDURE CalculateAccountBalance(
 BEGIN
     DECLARE balance NUMERIC(20, 2);
     -- Check if start_date is less than end_date and both are of type TIMESTAMP
-    IF start_date < end_date THEN
+    IF start_date <= end_date THEN
 
         -- Calculate balance changes during the specified period and display transactions
         SELECT 1       AS Status,
