@@ -31,14 +31,14 @@ def login():
         first_name = result[4]
         last_name = result[5]
         try:
-            email_thread = threading.Thread(target=send_email, args=[email, "ورود به همراه بانک"])
+            email_thread = threading.Thread(target=send_email_login, args=[email, "ورود به همراه بانک"])
             email_thread.start()
             root.destroy()  # بستن پنجره
             MainWindow(int(id), email, username, first_name, last_name)
 
         except Exception as e:
             messagebox.showerror("خطا", "ارتباط با برنامه با مشکل مواجه شد.")
-            root.destroy()  # بستن پنجره در صورت خطا
+            # root.destroy()  # بستن پنجره در صورت خطا
 
     else:
         # در غیر اینصورت، نمایش پیام خطا به کاربر
