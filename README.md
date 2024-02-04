@@ -58,7 +58,7 @@ To begin using the project, follow the steps below:
    ```
 
    Replace `your_username`, `your_password`, and `your_database_name` with your actual database credentials.
-2. Configure the email settings by adding the following to the `config.ini` file:
+2. Configure the email settings by adding the following to the `utils/mail.ini` file:
 
    ```ini
    [email]
