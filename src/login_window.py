@@ -1,5 +1,5 @@
-from module import *
-from main_window import MainWindow
+from .module import *
+from .main_window import MainWindow
 
 
 # تعریف تابع برای تغییر قابلیت مشاهده یا عدم مشاهده رمز عبور
@@ -10,7 +10,6 @@ def toggle_password_visibility():
     else:
         password_entry.config(show="")
         toggle_password_button.config(text="پنهان کردن رمز")
-
 
 # تعریف تابع برای ورود به سیستم
 def login():
@@ -32,22 +31,18 @@ def login():
         first_name = result[4]
         last_name = result[5]
         try:
-            email_sender = EmailSender()
-            email_sender.connect_email()
-
-            email_sender.send_mail(receiver=email, subject="ورود به همراه بانک",
-                                   html_body=EmailNotification.login_message())
-            email_sender.close_connection()
+            email_thread = threading.Thread(target=send_email, args=[email, "ورود به همراه بانک"])
+            email_thread.start()
             root.destroy()  # بستن پنجره
             MainWindow(int(id), email, username, first_name, last_name)
 
         except Exception as e:
             messagebox.showerror("خطا", "ارتباط با برنامه با مشکل مواجه شد.")
             root.destroy()  # بستن پنجره در صورت خطا
+
     else:
         # در غیر اینصورت، نمایش پیام خطا به کاربر
         error_label.config(text=".نام کاربری یا رمز عبور اشتباه است")
-
 
 # تعریف و تنظیمات اولیه پنجره اصلی
 root = tk.Tk()
