@@ -1,4 +1,4 @@
-from module import *
+from .module import *
 
 
 class LoansTab(ttk.Frame):
@@ -82,9 +82,10 @@ class LoansTab(ttk.Frame):
 
 
 class LoansOfferTab(ttk.Frame):
-    def __init__(self, parent, id):
+    def __init__(self, parent, id, email):
         super().__init__(parent)
         self.id = id
+        self.email = email
         self.row_data = None
         self.create_loans_table()
 
@@ -178,6 +179,9 @@ class LoansOfferTab(ttk.Frame):
                 messagebox.showerror("خطا", 'خطا در اتصال به پایگاه داده')
             if int(output) == 1:
                 messagebox.showinfo("نتیحه", "وام واریز گردید")
+                email_thread = threading.Thread(target=send_email_deposite,
+                                                args=[self.email, str(self.row_data[0]), account_number])
+                email_thread.start()
             else:
                 messagebox.showerror("خطا", 'خطا در واریز وام ')
 
@@ -351,15 +355,9 @@ class LoanInstallmentPayment(ttk.Frame):
                 tk.messagebox.showinfo("موفقیت",
                                        "تراکنش با موفقیت انجام شد")
 
-                email_sender = EmailSender()
-                email_sender.connect_email()
-
-                send_amount = ORM.get_amount_account(account_number)
-
-                email_sender.send_mail(receiver=self.email, subject="ّبرداشت",
-                                       html_body=EmailNotification.withdraw(send_amount, transfer_amount,
-                                                                            account_number))
-                email_sender.close_connection()
+                email_thread = threading.Thread(target=send_email_withdraw,
+                                                args=[self.email, transfer_amount, account_number])
+                email_thread.start()
 
                 self.cancel_transaction_button.grid_forget()
                 self.otp_entry.grid_forget()
@@ -420,12 +418,9 @@ class LoanInstallmentPayment(ttk.Frame):
             tk.messagebox.showinfo("نتیجه",
                                    "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا یک دقیقه بیشتر اعتبار ندارد.")
 
-            email_sender = EmailSender()
-            email_sender.connect_email()
-
-            email_sender.send_mail(receiver=self.email, subject="رمز دوم",
-                                   html_body=EmailNotification.secondary_password(result[1]))
-            email_sender.close_connection()
+            email_thread = threading.Thread(target=secondary_password,
+                                            args=[self.email, result[1]])
+            email_thread.start()
 
         else:
             tk.messagebox.showerror("خطا",
@@ -527,7 +522,7 @@ class LoanInstallmentPayment(ttk.Frame):
 
         loan_installment: list = ORM.get_loan_installments(loan_id)
         for index, item in enumerate(loan_installment):
-            self.loans_installment_tree.insert("", tk.END, text=str(index+1),
+            self.loans_installment_tree.insert("", tk.END, text=str(index + 1),
                                                values=(f"{item[0]}", f"{item[1]}", f"{item[2]}", f"{item[3]}",
                                                        f"{'پرداخت نشده' if item[4] == 0 else 'پرداخت شده'}"),
                                                tags=('center',))
@@ -539,7 +534,6 @@ class LoanInstallmentPayment(ttk.Frame):
 
         small = ORM.get_smallest_unpaid_installment(loan_id)
         self.small_installment = small
-
 
     def on_user_account_selected(self, event):
         self.loans_combo.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
@@ -670,14 +664,17 @@ class AccountsTab(ttk.Frame):
             selected_item = selected_items[0]
             account_info = self.accounts_tree.item(selected_item, "values")
             data = list(filter(lambda x: x[2] == str(account_info[0]), self.accounts))[0]
+            print(data)
             self.selected_account_number_label.config(text=f"شماره حساب: {data[2]}")
             self.selected_primary_password_label.config(text=f"رمز اول حساب: {data[3]}", anchor='center')
             self.selected_amount_label.config(text=f"موجودی حساب: {data[4]}")
             self.selected_date_opened_label.config(text=f"تاریخ افتتاح حساب: {data[5]}")
             self.selected_date_closed_label.config(text=f"تاریخ بسته شدن حساب: {data[6]}")
             self.selected_description_entry.delete(0, tk.END)  # پاک کردن محتویات اولیه توضیحات
-            self.selected_description_entry.insert(0, data[8])  # وارد کردن توضیحات از دیتابیس
-            if bool(data[7]) == True:
+            self.selected_description_entry.delete(0, tk.END)  # پاک کردن محتویات اولیه توضیحات
+            self.selected_description_entry.insert(0, 'خالی' if str(data[8]) == 'None' else data[
+                8])  # وارد کردن توضیحات از دیتابیس
+            if bool(int(data[7])) == True:
                 self.selected_description_entry.config(state='disabled')
                 self.selected_account_status_checkbutton.config(state='disabled')
                 self.submit_button.config(state='disabled')
@@ -685,6 +682,7 @@ class AccountsTab(ttk.Frame):
                 self.selected_description_entry.config(state='normal')
                 self.selected_account_status_checkbutton.config(state='normal')
                 self.submit_button.config(state='normal')
+                self.selected_description_entry.delete(0, tk.END)
 
 
 class SettingsTab(ttk.Frame):
@@ -957,6 +955,7 @@ class TransactionsTab(ttk.Frame):
         elif filter_type == "تاریخ":
             start_date = self.start_date_entry.get_date()
             end_date = self.end_date_entry.get_date()
+            print(start_date, end_date)
             result: list = ORM.calculate_account_balance_with_date(account_number, start_date, end_date)
             if result == False:
                 messagebox.showerror("خطا", "خطا در اتصال به پایگاه داده")
@@ -992,93 +991,170 @@ class TransferFundsTab(ttk.Frame):
         self.create_layout()
 
     def create_layout(self):
-        frame = ttk.Frame(self)
-        frame.pack(expand=True, fill="both", padx=20, pady=20)  # ابعاد بزرگ و فاصله از لبه‌ها
+        main_frame = ttk.Frame(self)
+        main_frame.pack(expand=True, fill="both", padx=20, pady=20)
 
-        title_label = ttk.Label(frame, text="انتقال وجه", font=("Helvetica", 24))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(20, 30))  # پایین و بالا
+        title_label = ttk.Label(main_frame, text="انتقال وجه", font=("Helvetica", 24))
+        title_label.grid(row=0, column=0, columnspan=3, pady=(20, 30))
 
-        self.check_button = ttk.Button(frame, text="آپدیت اطلاعات", command=self.update_date,
-                                       width=20)
-        self.check_button.grid(row=1, column=2, sticky=tk.W, pady=10)
+        # Frame for transaction details
+        transaction_frame = ttk.Frame(main_frame)
+        transaction_frame.grid(row=1, column=0, columnspan=3, pady=10)
 
-        self.source_account_label = ttk.Label(frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
-        self.source_account_label.grid(row=1, column=0, sticky=tk.W, pady=10)
+        self.check_button = ttk.Button(transaction_frame, text="آپدیت اطلاعات", command=self.update_date, width=20)
+        self.check_button.grid(row=0, column=2, sticky=tk.W, pady=10)
 
-        self.source_account_combobox = ttk.Combobox(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
-        self.source_account_combobox.grid(row=1, column=1, sticky=tk.W, pady=10)
-        self.source_account_combobox['values'] = [f"{account[2]}" for account in
-                                                  self.user_accounts if account[8] == 0]
+        self.source_account_label = ttk.Label(transaction_frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
+        self.source_account_label.grid(row=0, column=0, sticky=tk.W, pady=10)
 
+        self.source_account_combobox = ttk.Combobox(transaction_frame, font=("Helvetica", 16), width=30)
+        self.source_account_combobox.grid(row=0, column=1, sticky=tk.W, pady=10)
+        self.source_account_combobox['values'] = [f"{account[2]}" for account in self.user_accounts if account[8] == 0]
         self.source_account_combobox.set(self.user_accounts[0][2])
 
-        self.destination_account_label = ttk.Label(frame, text="شماره حساب مقصد:", font=("Helvetica", 16))
-        self.destination_account_label.grid(row=2, column=0, sticky=tk.W, pady=10)
+        self.destination_account_label = ttk.Label(transaction_frame, text="شماره حساب مقصد:", font=("Helvetica", 16))
+        self.destination_account_label.grid(row=1, column=0, sticky=tk.W, pady=10)
 
-        self.destination_account_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
-        self.destination_account_entry.grid(row=2, column=1, sticky=tk.W, pady=10)
+        self.destination_account_entry = ttk.Entry(transaction_frame, font=("Helvetica", 16), width=30)
+        self.destination_account_entry.grid(row=1, column=1, sticky=tk.W, pady=10)
 
-        self.check_button = ttk.Button(frame, text="بررسی شماره حساب مقصد", command=self.check_destination_account,
-                                       width=20)
-        self.check_button.grid(row=2, column=2, sticky=tk.W, pady=10)
+        self.check_button = ttk.Button(transaction_frame, text="بررسی شماره حساب مقصد",
+                                       command=self.check_destination_account, width=20)
+        self.check_button.grid(row=1, column=2, sticky=tk.W, pady=10)
 
-        self.transfer_amount_label = ttk.Label(frame, text="مقدار انتقال:", font=("Helvetica", 16))
-        self.transfer_amount_label.grid(row=3, column=0, sticky=tk.W, pady=10)
+        self.transfer_amount_label = ttk.Label(transaction_frame, text="مقدار انتقال:", font=("Helvetica", 16))
+        self.transfer_amount_label.grid(row=2, column=0, sticky=tk.W, pady=10)
 
-        self.transfer_amount_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
-        self.transfer_amount_entry.grid(row=3, column=1, sticky=tk.W, pady=10)
+        self.transfer_amount_entry = ttk.Entry(transaction_frame, font=("Helvetica", 16), width=30)
+        self.transfer_amount_entry.grid(row=2, column=1, sticky=tk.W, pady=10)
 
-        self.description_label = ttk.Label(frame, text="توضیحات:", font=("Helvetica", 16))
-        self.description_label.grid(row=4, column=0, sticky=tk.W, pady=10)
+        self.description_label = ttk.Label(transaction_frame, text="توضیحات:", font=("Helvetica", 16))
+        self.description_label.grid(row=3, column=0, sticky=tk.W, pady=10)
 
-        self.description_entry = ttk.Entry(frame, font=("Helvetica", 16), width=30)  # ابعاد زیادتر
-        self.description_entry.grid(row=4, column=1, sticky=tk.W, pady=10, columnspan=2)
+        self.description_entry = ttk.Entry(transaction_frame, font=("Helvetica", 16), width=30)
+        self.description_entry.grid(row=3, column=1, sticky=tk.W, pady=10, columnspan=2)
 
-        self.transfer_button = ttk.Button(frame, text="انتقال وجه", command=self.create_transaction, width=30)
-        self.transfer_button.grid(row=5, column=0, columnspan=3, pady=20)  # ردیف بعدی
+        self.transfer_button = ttk.Button(transaction_frame, text="انتقال وجه", command=self.create_transaction,
+                                          width=30)
+        self.transfer_button.grid(row=4, column=0, columnspan=3, pady=20)
 
-        self.cancel_button = ttk.Button(frame, text="لغو تراکنش", command=self.cancel_transaction, width=30)
-        self.cancel_button.grid(row=6, column=0, columnspan=3, pady=20)  # ردیف بعدی
+        self.cancel_button = ttk.Button(transaction_frame, text="لغو تراکنش", command=self.cancel_transaction, width=30)
+        self.cancel_button.grid(row=5, column=0, columnspan=3, pady=20)
         self.cancel_button.config(state="disabled")
 
-        password_frame = ttk.Frame(self)
-        password_frame.pack(fill="y", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
-        # password_frame.grid(row=3, column=3)
-
-        password_frame = ttk.Frame(self)
-        password_frame.pack(fill="y", expand=False, padx=20, pady=(0, 20))  # بالا و پایین
+        # Frame for password details
+        password_frame = ttk.Frame(main_frame)
+        password_frame.grid(row=2, column=0, columnspan=3, pady=(0, 20))
 
         self.password_label = ttk.Label(password_frame, text="رمز دوم:", font=("Helvetica", 16))
         self.password_label.grid(row=0, column=0, sticky=tk.W)
 
-        self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16), width=30)  # ابعاد زیادتر
+        self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16), width=30)
         self.password_entry.grid(row=0, column=1, sticky=tk.W)
 
         self.toggle_password_button = ttk.Button(password_frame, text="پنهان کردن رمز",
-                                                 command=self.toggle_password_visibility,
-                                                 cursor="hand2",
-                                                 style="TButton")  # تغییر اندازه فونت و دکمه‌ها
-
+                                                 command=self.toggle_password_visibility, cursor="hand2",
+                                                 style="TButton")
         self.toggle_password_button.grid(row=0, column=2, padx=5, pady=5)
 
         self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer, width=20)
-        self.confirm_button.grid(row=1, column=1, sticky=tk.W)  # سمت راست
+        self.confirm_button.grid(row=1, column=1, sticky=tk.W)
 
         self.request_secondary_password_button = ttk.Button(password_frame, text="درخواست رمز دوم",
                                                             command=self.request_secondary_password, width=20)
         self.request_secondary_password_button.grid(row=1, column=2, sticky=tk.W)
 
+        # Hide unnecessary elements initially
+        self.hide_password_elements()
+
+        self.update_date()
+
+    def create_layout(self):
+        main_frame = ttk.Frame(self)
+        main_frame.pack(expand=True, fill="both", padx=20, pady=20)
+
+        title_label = ttk.Label(main_frame, text="انتقال وجه", font=("Helvetica", 24))
+        title_label.grid(row=0, column=0, columnspan=3, pady=(20, 30))
+
+        # Frame for transaction details
+        transaction_frame = ttk.Frame(main_frame)
+        transaction_frame.grid(row=1, column=0, columnspan=3, pady=10)
+
+        self.check_button = ttk.Button(transaction_frame, text="آپدیت اطلاعات", command=self.update_date, width=20)
+        self.check_button.grid(row=0, column=2, sticky=tk.W, pady=10)
+
+        self.source_account_label = ttk.Label(transaction_frame, text="انتخاب حساب مبدا:", font=("Helvetica", 16))
+        self.source_account_label.grid(row=0, column=0, sticky=tk.W, pady=10)
+
+        self.source_account_combobox = ttk.Combobox(transaction_frame, font=("Helvetica", 16), width=30)
+        self.source_account_combobox.grid(row=0, column=1, sticky=tk.W, pady=10)
+        self.source_account_combobox['values'] = [f"{account[2]}" for account in self.user_accounts if account[8] == 0]
+        self.source_account_combobox.set(self.user_accounts[0][2])
+
+        self.destination_account_label = ttk.Label(transaction_frame, text="شماره حساب مقصد:", font=("Helvetica", 16))
+        self.destination_account_label.grid(row=1, column=0, sticky=tk.W, pady=10)
+
+        self.destination_account_entry = ttk.Entry(transaction_frame, font=("Helvetica", 16), width=30)
+        self.destination_account_entry.grid(row=1, column=1, sticky=tk.W, pady=10)
+
+        self.check_button = ttk.Button(transaction_frame, text="بررسی شماره حساب مقصد",
+                                       command=self.check_destination_account, width=20)
+        self.check_button.grid(row=1, column=2, sticky=tk.W, pady=10)
+
+        self.transfer_amount_label = ttk.Label(transaction_frame, text="مقدار انتقال:", font=("Helvetica", 16))
+        self.transfer_amount_label.grid(row=2, column=0, sticky=tk.W, pady=10)
+
+        self.transfer_amount_entry = ttk.Entry(transaction_frame, font=("Helvetica", 16), width=30)
+        self.transfer_amount_entry.grid(row=2, column=1, sticky=tk.W, pady=10)
+
+        self.description_label = ttk.Label(transaction_frame, text="توضیحات:", font=("Helvetica", 16))
+        self.description_label.grid(row=3, column=0, sticky=tk.W, pady=10)
+
+        self.description_entry = ttk.Entry(transaction_frame, font=("Helvetica", 16), width=30)
+        self.description_entry.grid(row=3, column=1, sticky=tk.W, pady=10, columnspan=2)
+
+        self.transfer_button = ttk.Button(transaction_frame, text="انتقال وجه", command=self.create_transaction,
+                                          width=30)
+        self.transfer_button.grid(row=4, column=0, columnspan=3, pady=20)
+
+        self.cancel_button = ttk.Button(transaction_frame, text="لغو تراکنش", command=self.cancel_transaction, width=30)
+        self.cancel_button.grid(row=5, column=0, columnspan=3, pady=20)
+        self.cancel_button.config(state="disabled")
+
+        # Frame for password details
+        password_frame = ttk.Frame(main_frame)
+        password_frame.grid(row=2, column=0, columnspan=3, pady=(0, 20))
+
+        self.password_label = ttk.Label(password_frame, text="رمز دوم:", font=("Helvetica", 16))
+        self.password_label.grid(row=0, column=0, sticky=tk.W)
+
+        self.password_entry = ttk.Entry(password_frame, show="*", font=("Helvetica", 16), width=30)
+        self.password_entry.grid(row=0, column=1, sticky=tk.W)
+
+        self.toggle_password_button = ttk.Button(password_frame, text="پنهان کردن رمز",
+                                                 command=self.toggle_password_visibility, cursor="hand2",
+                                                 style="TButton")
+        self.toggle_password_button.grid(row=0, column=2, padx=5, pady=5)
+
+        self.confirm_button = ttk.Button(password_frame, text="تأیید", command=self.confirm_transfer, width=20)
+        self.confirm_button.grid(row=1, column=1, sticky=tk.W)
+
+        self.request_secondary_password_button = ttk.Button(password_frame, text="درخواست رمز دوم",
+                                                            command=self.request_secondary_password, width=20)
+        self.request_secondary_password_button.grid(row=1, column=2, sticky=tk.W)
+
+        # Hide unnecessary elements initially
+        self.hide_password_elements()
+
+        self.update_date()
+
+    def hide_password_elements(self):
         self.password_label.grid_forget()
         self.password_entry.grid_forget()
         self.confirm_button.grid_forget()
         self.request_secondary_password_button.grid_forget()
         self.toggle_password_button.grid_forget()
-
-        self.source_account_combobox.config(state="readonly")
         self.cancel_button.grid_forget()
-
-        self.update_date()
-
     def update_date(self):
         self.source_account_combobox.delete(0, 'end')  # پاک کردن تمامی گزینه‌ها
 
@@ -1117,12 +1193,10 @@ class TransferFundsTab(ttk.Frame):
             tk.messagebox.showinfo("نتیجه",
                                    "رمز دوم برای شما ارسال شد. توجه داشته باشد این رمز تا یک دقیقه بیشتر اعتبار ندارد.")
 
-            email_sender = EmailSender()
-            email_sender.connect_email()
+            email_thread = threading.Thread(target=secondary_password,
+                                            args=[self.email, result[1]])
+            email_thread.start()
 
-            email_sender.send_mail(receiver=self.email, subject="رمز دوم",
-                                   html_body=EmailNotification.secondary_password(result[1]))
-            email_sender.close_connection()
 
         else:
             tk.messagebox.showerror("خطا",
@@ -1241,8 +1315,12 @@ class TransferFundsTab(ttk.Frame):
 
     def is_valid_destination_account(self, account_number):
         result: str = ORM.check_destination_account(account_number)
+        print(account_number, self.source_account_combobox.get())
+        if str(account_number) == (self.source_account_combobox.get()):
+            return False
         if result != 'Not found':
             return result
+
         return False
 
     def confirm_transfer(self):
@@ -1254,7 +1332,7 @@ class TransferFundsTab(ttk.Frame):
             # بررسی رمز دوم
         elif int(result) == 1:
             source_account_number: str = self.source_account_combobox.get()
-            transfer_amount: int = int(self.transfer_amount_entry.get())
+            transfer_amount: str = str(self.transfer_amount_entry.get())
             destination_account_number: str = self.destination_account_entry.get()
 
             output = ORM.transfer_funds(source_account_number=source_account_number,
@@ -1269,22 +1347,15 @@ class TransferFundsTab(ttk.Frame):
                 tk.messagebox.showinfo("موفقیت",
                                        "تراکنش با موفقیت انجام شد")
 
-                email_sender = EmailSender()
-                email_sender.connect_email()
+                email_thread = threading.Thread(target=send_email_withdraw,
+                                                args=[self.email, transfer_amount, source_account_number])
+                email_thread.start()
 
-                send_amount = ORM.get_amount_account(source_account_number)
-
-                email_sender.send_mail(receiver=self.email, subject="ّبرداشت",
-                                       html_body=EmailNotification.withdraw(send_amount, transfer_amount,
-                                                                            source_account_number))
-
-                recive_amount = ORM.get_amount_account(destination_account_number)
                 recive_email = ORM.get_email_with_account_number(destination_account_number)
 
-                email_sender.send_mail(receiver=recive_email, subject="واریز",
-                                       html_body=EmailNotification.deposite(recive_amount, transfer_amount,
-                                                                            destination_account_number))
-                email_sender.close_connection()
+                email_thread_d = threading.Thread(target=send_email_deposite,
+                                                args=[recive_email, transfer_amount,  destination_account_number])
+                email_thread_d.start()
 
                 self.enable_fields()
                 self.clear_fields()
@@ -1312,7 +1383,7 @@ class MainWindow:
     def __init__(self, id: int, email: str, username: str, first_name: str, last_name: str):
         self.root = tk.Tk()
         self.root.title("Bank Details")
-        self.root.geometry("800x600")
+        self.root.geometry("800x800")
 
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True)
@@ -1320,7 +1391,7 @@ class MainWindow:
         self.loans_tab = LoansTab(self.notebook, id)
         self.notebook.add(self.loans_tab, text="وام ‌های من")
 
-        self.loans_offer_tab = LoansOfferTab(self.notebook, id)
+        self.loans_offer_tab = LoansOfferTab(self.notebook, id, email)
         self.notebook.add(self.loans_offer_tab, text="وام ‌های پیشنهادی من")
 
         self.loan_installment_payment_tab = LoanInstallmentPayment(self.notebook, id, email)
