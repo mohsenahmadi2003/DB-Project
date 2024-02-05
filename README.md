@@ -12,10 +12,15 @@ This project is part of a database course, featuring the following functionaliti
 - Viewing the bank's proposed loans
 - And much more.
 
+## Entity-Relationship Diagram (ERD)
+
+You can view the Entity-Relationship Diagram (ERD) for the database schema and table relationships in the following PDF file:
+
+[Download ERD PDF](https://github.com/mohsenahmadi2003/DB-Project/blob/main/ER.pdf)
+
 ## Project Preview
 
 ![Bank Project Preview](https://github.com/mohsenahmadi2003/DB-Project/blob/main/bank.gif)
-
 
 ## Getting Started
 
